@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"sync"
 )
 
 // Errors
@@ -47,6 +48,7 @@ type header struct {
 
 type Conn struct {
 	rwc io.ReadWriteCloser
+	l   sync.Mutex
 }
 
 func Dial(addr string) (*Conn, os.Error) {
@@ -60,6 +62,9 @@ func Dial(addr string) (*Conn, os.Error) {
 }
 
 func (cn *Conn) Get(key string) (string, int, os.Error) {
+	cn.l.Lock()
+	defer cn.l.Unlock()
+
 	h := &header{
 		Magic: 0x80,
 		Op:  0x00,
