@@ -78,13 +78,11 @@ func (cn *Conn) Get(key string) (string, int, os.Error) {
 	}
 
 	_, err = io.WriteString(cn.rwc, key)
-
-	err = binary.Read(cn.rwc, binary.BigEndian, h)
 	if err != nil {
 		return "", 0, err
 	}
 
-	err = checkError(h)
+	err = cn.readHeader(h)
 	if err != nil {
 		return "", 0, err
 	}
@@ -96,6 +94,20 @@ func (cn *Conn) Get(key string) (string, int, os.Error) {
 	}
 
 	return string(b), int(h.CAS), nil
+}
+
+func (cn *Conn) readHeader(h *header) os.Error {
+	err := binary.Read(cn.rwc, binary.BigEndian, h)
+	if err != nil {
+		return err
+	}
+
+	err = checkError(h)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func checkError(h *header) os.Error {
