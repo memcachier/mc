@@ -181,8 +181,6 @@ func (cn *Conn) send(h *header, b *body) (err os.Error) {
 		return err
 	}
 
-	serr := checkError(h)
-
 	for _, e := range b.oextras {
 		err = binary.Read(cn.rwc, binary.BigEndian, e)
 		if err != nil {
@@ -201,7 +199,7 @@ func (cn *Conn) send(h *header, b *body) (err os.Error) {
 		return
 	}
 
-	return serr
+	return checkError(h)
 }
 
 func (cn *Conn) readString(n uint) (string, os.Error) {
