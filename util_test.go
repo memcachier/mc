@@ -16,8 +16,9 @@ func (l *lrwc) Write(b []byte) (int, os.Error) {
 }
 
 func (l *lrwc) Read(b []byte) (int, os.Error) {
+	n, err := l.rwc.Read(b)
 	fmt.Printf("<< %q\n", b)
-	return l.rwc.Read(b)
+	return n, err
 }
 
 func (l *lrwc) Close() os.Error {

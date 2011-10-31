@@ -2,6 +2,7 @@ package mc
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -34,6 +35,37 @@ var errMap = map[uint16]os.Error{
 	0x82: ErrOutOfMemory,
 }
 
+// Ops
+const (
+	OpGet = uint8(iota)
+	OpSet
+	OpAdd
+	OpReplace
+	OpDelete
+	OpIncrement
+	OpDecrement
+	OpQuit
+	OpFlush
+	OpGetQ
+	OpNoop
+	OpVersion
+	OpGetK
+	OpGetKQ
+	OpAppend
+	OpPrepend
+	OpStat
+	OpSetQ
+	OpAddQ
+	OpReplaceQ
+	OpDeleteQ
+	OpIncrementQ
+	OpDecrementQ
+	OpQuitQ
+	OpFlushQ
+	OpAppendQ
+	OpPrependQ
+)
+
 type header struct {
 	Magic        uint8
 	Op           uint8
@@ -44,6 +76,13 @@ type header struct {
 	BodyLen      uint32
 	Opaque       uint32
 	CAS          uint64
+}
+
+type body struct {
+	iextras []interface{}
+	oextras []interface{}
+	key     string
+	val     string
 }
 
 type Conn struct {
@@ -63,40 +102,109 @@ func Dial(addr string) (*Conn, os.Error) {
 
 func (cn *Conn) Get(key string) (val string, cas int, err os.Error) {
 	h := &header{
-		Magic:   0x80,
-		Op:      0x00,
-		KeyLen:  uint16(len(key)),
-		BodyLen: uint32(len(key)),
+		Op: OpGet,
 	}
 
-	val, err = cn.send(h, key)
-	return
+	b := &body{
+		key: key,
+	}
+
+	err = cn.send(h, b)
+
+	return b.val, int(h.CAS), err
 }
 
-func (cn *Conn) send(h *header, key string) (val string, err os.Error) {
+func (cn *Conn) Set(key, val string, ocas, flags, exp int) os.Error {
+	h := &header{
+		Op:  OpSet,
+		CAS: uint64(ocas),
+	}
+
+	b := &body{
+		iextras: []interface{}{uint32(flags), uint32(exp)},
+		key:     key,
+		val:     val,
+	}
+
+	return cn.send(h, b)
+}
+
+func (cn *Conn) Del(key string) os.Error {
+	h := &header{
+		Op: OpDelete,
+	}
+
+	b := &body{
+		key: key,
+	}
+
+	return cn.send(h, b)
+}
+
+func (cn *Conn) send(h *header, b *body) (err os.Error) {
+	const magic uint8 = 0x80
+
+	h.Magic = magic
+	h.ExtraLen = sizeOfExtras(b.iextras)
+	h.KeyLen = uint16(len(b.key))
+	h.BodyLen = uint32(h.ExtraLen) + uint32(h.KeyLen) + uint32(len(b.val))
+
 	cn.l.Lock()
 	defer cn.l.Unlock()
 
+	// Request
 	err = binary.Write(cn.rwc, binary.BigEndian, h)
 	if err != nil {
 		return
 	}
 
-	_, err = io.WriteString(cn.rwc, key)
+	for _, e := range b.iextras {
+		err = binary.Write(cn.rwc, binary.BigEndian, e)
+		if err != nil {
+			return
+		}
+	}
+
+	_, err = io.WriteString(cn.rwc, b.key)
 	if err != nil {
 		return
 	}
 
-	err = cn.readHeader(h)
+	_, err = io.WriteString(cn.rwc, b.val)
 	if err != nil {
 		return
 	}
 
-	val, err = cn.readString(h.KeyLen)
-	return
+	// Response
+	err = binary.Read(cn.rwc, binary.BigEndian, h)
+	if err != nil {
+		return err
+	}
+
+	serr := checkError(h)
+
+	for _, e := range b.oextras {
+		err = binary.Read(cn.rwc, binary.BigEndian, e)
+		if err != nil {
+			return
+		}
+	}
+
+	b.key, err = cn.readString(uint(h.KeyLen))
+	if err != nil {
+		return
+	}
+
+	vlen := uint(h.BodyLen) - uint(h.ExtraLen) - uint(h.KeyLen)
+	b.val, err = cn.readString(vlen)
+	if err != nil {
+		return
+	}
+
+	return serr
 }
 
-func (cn *Conn) readString(n uint16) (string, os.Error) {
+func (cn *Conn) readString(n uint) (string, os.Error) {
 	b := make([]byte, n)
 	_, err := io.ReadFull(cn.rwc, b)
 	if err != nil {
@@ -105,24 +213,29 @@ func (cn *Conn) readString(n uint16) (string, os.Error) {
 	return string(b), nil
 }
 
-func (cn *Conn) readHeader(h *header) os.Error {
-	err := binary.Read(cn.rwc, binary.BigEndian, h)
-	if err != nil {
-		return err
-	}
-
-	err = checkError(h)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func checkError(h *header) os.Error {
 	err, ok := errMap[h.ResvOrStatus]
 	if !ok {
+		fmt.Printf("status: %d\n", h.ResvOrStatus)
 		return os.NewError("mc: unknown error from server")
 	}
 	return err
+}
+
+func sizeOfExtras(extras []interface{}) (l uint8) {
+	for _, e := range extras {
+		switch e.(type) {
+		default:
+			panic(fmt.Sprintf("mc: unknown extra type (%T)", e))
+		case uint8:
+			l += 8 / 8
+		case uint16:
+			l += 16 / 8
+		case uint32:
+			l += 32 / 8
+		case uint64:
+			l += 64 / 8
+		}
+	}
+	return
 }
