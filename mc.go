@@ -61,10 +61,7 @@ func Dial(addr string) (*Conn, os.Error) {
 	return cn, nil
 }
 
-func (cn *Conn) Get(key string) (string, int, os.Error) {
-	cn.l.Lock()
-	defer cn.l.Unlock()
-
+func (cn *Conn) Get(key string) (val string, cas int, err os.Error) {
 	h := &header{
 		Magic:   0x80,
 		Op:      0x00,
@@ -72,27 +69,31 @@ func (cn *Conn) Get(key string) (string, int, os.Error) {
 		BodyLen: uint32(len(key)),
 	}
 
-	err := binary.Write(cn.rwc, binary.BigEndian, h)
+	val, err = cn.send(h, key)
+	return
+}
+
+func (cn *Conn) send(h *header, key string) (val string, err os.Error) {
+	cn.l.Lock()
+	defer cn.l.Unlock()
+
+	err = binary.Write(cn.rwc, binary.BigEndian, h)
 	if err != nil {
-		return "", 0, err
+		return
 	}
 
 	_, err = io.WriteString(cn.rwc, key)
 	if err != nil {
-		return "", 0, err
+		return
 	}
 
 	err = cn.readHeader(h)
 	if err != nil {
-		return "", 0, err
+		return
 	}
 
-	val, err := cn.readString(h.KeyLen)
-	if err != nil {
-		return "", 0, err
-	}
-
-	return val, int(h.CAS), nil
+	val, err = cn.readString(h.KeyLen)
+	return
 }
 
 func (cn *Conn) readString(n uint16) (string, os.Error) {
