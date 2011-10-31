@@ -10,40 +10,40 @@ import (
 
 // Errors
 var (
-	ErrNotFound = os.NewError("mc: not found")
-	ErrKeyExists = os.NewError("mc: key exists")
-	ErrValueTooLarge = os.NewError("mc: value to large")
-	ErrInvalidArgs = os.NewError("mc: invalid arguments")
+	ErrNotFound       = os.NewError("mc: not found")
+	ErrKeyExists      = os.NewError("mc: key exists")
+	ErrValueTooLarge  = os.NewError("mc: value to large")
+	ErrInvalidArgs    = os.NewError("mc: invalid arguments")
 	ErrValueNotStored = os.NewError("mc: value not stored")
-	ErrNonNumeric = os.NewError("mc: incr/decr called on non-numeric value")
-	ErrAuthRequired = os.NewError("mc: authentication required")
+	ErrNonNumeric     = os.NewError("mc: incr/decr called on non-numeric value")
+	ErrAuthRequired   = os.NewError("mc: authentication required")
 	ErrUnknownCommand = os.NewError("mc: unknown command")
-	ErrOutOfMemory = os.NewError("mc: out of memory")
+	ErrOutOfMemory    = os.NewError("mc: out of memory")
 )
 
 var errMap = map[uint16]os.Error{
-	0: nil,
-	1: ErrNotFound,
-	2: ErrKeyExists,
-	3: ErrValueTooLarge,
-	4: ErrInvalidArgs,
-	5: ErrValueNotStored,
-	6: ErrNonNumeric,
+	0:    nil,
+	1:    ErrNotFound,
+	2:    ErrKeyExists,
+	3:    ErrValueTooLarge,
+	4:    ErrInvalidArgs,
+	5:    ErrValueNotStored,
+	6:    ErrNonNumeric,
 	0x20: ErrAuthRequired,
 	0x81: ErrUnknownCommand,
 	0x82: ErrOutOfMemory,
 }
 
 type header struct {
-	Magic  uint8
-	Op     uint8
-	KeyLen   uint16
-	ExtraLen   uint8
-	DataType  uint8
-	ResvOrStatus  uint16
-	BodyLen   uint32
-	Opaque uint32
-	CAS    uint64
+	Magic        uint8
+	Op           uint8
+	KeyLen       uint16
+	ExtraLen     uint8
+	DataType     uint8
+	ResvOrStatus uint16
+	BodyLen      uint32
+	Opaque       uint32
+	CAS          uint64
 }
 
 type Conn struct {
@@ -66,9 +66,9 @@ func (cn *Conn) Get(key string) (string, int, os.Error) {
 	defer cn.l.Unlock()
 
 	h := &header{
-		Magic: 0x80,
-		Op:  0x00,
-		KeyLen: uint16(len(key)),
+		Magic:   0x80,
+		Op:      0x00,
+		KeyLen:  uint16(len(key)),
 		BodyLen: uint32(len(key)),
 	}
 
