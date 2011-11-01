@@ -185,34 +185,27 @@ func (cn *Conn) send(h *header, b *body) (err os.Error) {
 		return err
 	}
 
+	bd := make([]byte, h.BodyLen)
+	_, err = io.ReadFull(cn.rwc, bd)
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.NewBuffer(bd)
+
 	for _, e := range b.oextras {
-		err = binary.Read(cn.rwc, binary.BigEndian, e)
+		err = binary.Read(buf, binary.BigEndian, e)
 		if err != nil {
 			return
 		}
 	}
 
-	b.key, err = cn.readString(uint(h.KeyLen))
-	if err != nil {
-		return
-	}
+	b.key = string(buf.Next(int(h.KeyLen)))
 
-	vlen := uint(h.BodyLen) - uint(h.ExtraLen) - uint(h.KeyLen)
-	b.val, err = cn.readString(vlen)
-	if err != nil {
-		return
-	}
+	vlen := int(h.BodyLen) - int(h.ExtraLen) - int(h.KeyLen)
+	b.val = string(buf.Next(int(vlen)))
 
 	return checkError(h)
-}
-
-func (cn *Conn) readString(n uint) (string, os.Error) {
-	b := make([]byte, n)
-	_, err := io.ReadFull(cn.rwc, b)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
 }
 
 func checkError(h *header) os.Error {
