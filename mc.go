@@ -1,6 +1,7 @@
 package mc
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -88,6 +89,7 @@ type body struct {
 type Conn struct {
 	rwc io.ReadWriteCloser
 	l   sync.Mutex
+	buf *bytes.Buffer
 }
 
 func Dial(addr string) (*Conn, os.Error) {
@@ -96,7 +98,7 @@ func Dial(addr string) (*Conn, os.Error) {
 		return nil, err
 	}
 
-	cn := &Conn{rwc: nc}
+	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 	return cn, nil
 }
 
@@ -153,27 +155,29 @@ func (cn *Conn) send(h *header, b *body) (err os.Error) {
 	defer cn.l.Unlock()
 
 	// Request
-	err = binary.Write(cn.rwc, binary.BigEndian, h)
+	err = binary.Write(cn.buf, binary.BigEndian, h)
 	if err != nil {
 		return
 	}
 
 	for _, e := range b.iextras {
-		err = binary.Write(cn.rwc, binary.BigEndian, e)
+		err = binary.Write(cn.buf, binary.BigEndian, e)
 		if err != nil {
 			return
 		}
 	}
 
-	_, err = io.WriteString(cn.rwc, b.key)
+	_, err = io.WriteString(cn.buf, b.key)
 	if err != nil {
 		return
 	}
 
-	_, err = io.WriteString(cn.rwc, b.val)
+	_, err = io.WriteString(cn.buf, b.val)
 	if err != nil {
 		return
 	}
+
+	cn.buf.WriteTo(cn.rwc)
 
 	// Response
 	err = binary.Read(cn.rwc, binary.BigEndian, h)

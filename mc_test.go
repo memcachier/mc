@@ -1,6 +1,7 @@
 package mc
 
 import (
+	"bytes"
 	"github.com/bmizerany/assert"
 	"testing"
 	"net"
@@ -12,7 +13,7 @@ func TestMCSimple(t *testing.T) {
 	nc, err := net.Dial("tcp", mcAddr)
 	assert.Equalf(t, nil, err, "%v", err)
 
-	cn := &Conn{rwc: nc}
+	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 
 	err = cn.Del("foo")
 	if err != ErrNotFound {
