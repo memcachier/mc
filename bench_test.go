@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func BenchmarkSet5k(b *testing.B) {
+func BenchmarkSet(b *testing.B) {
 	b.StopTimer()
 	cn, err := Dial("localhost:11211")
 	if err != nil {
