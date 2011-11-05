@@ -28,7 +28,7 @@
 				...
 			}
 
-			exp = 1e9 * 2 // 2 hours
+			exp = 3600 // 2 hours
 			err = cn.Set("foo", "bar", cas, exp)
 			if err != nil {
 				...
