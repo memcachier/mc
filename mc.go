@@ -100,8 +100,8 @@ type Conn struct {
 	buf *bytes.Buffer
 }
 
-func Dial(addr string) (*Conn, os.Error) {
-	nc, err := net.Dial("tcp", addr)
+func Dial(nett, addr string) (*Conn, os.Error) {
+	nc, err := net.Dial(nett, addr)
 	if err != nil {
 		return nil, err
 	}
