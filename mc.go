@@ -159,7 +159,7 @@ func (cn *Conn) Decr(key string, delta, init, exp int) (n, cas int, err os.Error
 	return cn.incrdecr(OpDecrement, key, delta, init, exp)
 }
 
-func (cn *Conn) Auth(user, pass string) (os.Error) {
+func (cn *Conn) Auth(user, pass string) os.Error {
 	s, err := cn.authList()
 	if err != nil {
 		return err
@@ -203,7 +203,7 @@ func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int
 	}
 
 	b := &body{
-		key: key,
+		key:     key,
 		iextras: []interface{}{uint64(delta), uint64(delta), uint32(exp)},
 	}
 
