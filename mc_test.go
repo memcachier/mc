@@ -41,4 +41,9 @@ func TestMCSimple(t *testing.T) {
 	assert.Equalf(t, nil, err, "%v", err)
 	assert.NotEqual(t, 0, cas)
 	assert.Equal(t, 2, n)
+
+	n, cas, err = cn.Decr("n", 1, 0, 0)
+	assert.Equalf(t, nil, err, "%v", err)
+	assert.NotEqual(t, 0, cas)
+	assert.Equal(t, 1, n)
 }

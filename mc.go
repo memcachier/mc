@@ -144,8 +144,16 @@ func (cn *Conn) Del(key string) os.Error {
 }
 
 func (cn *Conn) Incr(key string, delta, init, exp int) (n, cas int, err os.Error) {
+	return cn.incrdecr(OpIncrement, key, delta, init, exp)
+}
+
+func (cn *Conn) Decr(key string, delta, init, exp int) (n, cas int, err os.Error) {
+	return cn.incrdecr(OpDecrement, key, delta, init, exp)
+}
+
+func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int, err os.Error) {
 	h := &header{
-		Op: OpIncrement,
+		Op: op,
 	}
 
 	b := &body{
