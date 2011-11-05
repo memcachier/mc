@@ -15,6 +15,9 @@ func TestMCSimple(t *testing.T) {
 
 	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 
+	err = cn.Auth("mcgo", "foo")
+	assert.Equalf(t, nil, err, "%v", err)
+
 	err = cn.Del("foo")
 	if err != ErrNotFound {
 		assert.Equalf(t, nil, err, "%v", err)
@@ -30,7 +33,9 @@ func TestMCSimple(t *testing.T) {
 	assert.Equalf(t, nil, err, "%v", err)
 
 	err = cn.Del("n")
-	assert.Equalf(t, nil, err, "%v", err)
+	if err != ErrNotFound {
+		assert.Equalf(t, nil, err, "%v", err)
+	}
 
 	n, cas, err := cn.Incr("n", 1, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
