@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -65,6 +66,13 @@ const (
 	OpFlushQ
 	OpAppendQ
 	OpPrependQ
+)
+
+// Auth Ops
+const (
+	OpAuthList = uint8(iota + 0x20)
+	OpAuthStart
+	OpAuthStep
 )
 
 type header struct {
@@ -149,6 +157,44 @@ func (cn *Conn) Incr(key string, delta, init, exp int) (n, cas int, err os.Error
 
 func (cn *Conn) Decr(key string, delta, init, exp int) (n, cas int, err os.Error) {
 	return cn.incrdecr(OpDecrement, key, delta, init, exp)
+}
+
+func (cn *Conn) Auth(user, pass string) (os.Error) {
+	s, err := cn.authList()
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case strings.Index(s, "PLAIN") != -1:
+		return cn.authPlain(user, pass)
+	}
+
+	return fmt.Errorf("mc: unknown auth types %q", s)
+}
+
+func (cn *Conn) authList() (s string, err os.Error) {
+	h := &header{
+		Op: OpAuthList,
+	}
+
+	b := &body{}
+
+	err = cn.send(h, b)
+	return b.val, err
+}
+
+func (cn *Conn) authPlain(user, pass string) os.Error {
+	h := &header{
+		Op: OpAuthStart,
+	}
+
+	b := &body{
+		key: "PLAIN",
+		val: fmt.Sprintf("\x00%s\x00%s", user, pass),
+	}
+
+	return cn.send(h, b)
 }
 
 func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int, err os.Error) {
