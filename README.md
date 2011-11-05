@@ -10,10 +10,18 @@
 
 		func main() {
 			// Error handling omitted for demo
-			cn, err := mc.Dial("tcp", "localhost:11211", "myuser", "mypass")
+			cn, err := mc.Dial("tcp", "localhost:11211")
 			if err != nil {
 				...
 			}
+
+			// Only PLAIN SASL auth supported right now
+			// See: http://code.google.com/p/memcached/wiki/SASLHowto
+			err = cn.Auth("foo", "bar")
+			if err != nil {
+				...
+			}
+			
 
 			val, cas, err = cn.Get("foo")
 			if err != nil {
