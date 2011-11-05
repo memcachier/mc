@@ -143,6 +143,24 @@ func (cn *Conn) Del(key string) os.Error {
 	return cn.send(h, b)
 }
 
+func (cn *Conn) Incr(key string, delta, init, exp int) (n, cas int, err os.Error) {
+	h := &header{
+		Op: OpIncrement,
+	}
+
+	b := &body{
+		key: key,
+		iextras: []interface{}{uint64(delta), uint64(delta), uint32(exp)},
+	}
+
+	err = cn.send(h, b)
+	if err != nil {
+		return
+	}
+
+	return readInt(b.val), int(h.CAS), nil
+}
+
 func (cn *Conn) send(h *header, b *body) (err os.Error) {
 	const magic uint8 = 0x80
 
@@ -233,4 +251,14 @@ func sizeOfExtras(extras []interface{}) (l uint8) {
 		}
 	}
 	return
+}
+
+func readInt(b string) int {
+	switch len(b) {
+	case 8: // 64 bit
+		return int(uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56)
+	}
+
+	panic(fmt.Sprintf("mc: don't know how to parse string with %d bytes", len(b)))
 }

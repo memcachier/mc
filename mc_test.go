@@ -25,4 +25,20 @@ func TestMCSimple(t *testing.T) {
 
 	err = cn.Set("foo", "bar", 0, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
+
+	err = cn.Set("foo", "bar", 0, 0, 0)
+	assert.Equalf(t, nil, err, "%v", err)
+
+	err = cn.Del("n")
+	assert.Equalf(t, nil, err, "%v", err)
+
+	n, cas, err := cn.Incr("n", 1, 0, 0)
+	assert.Equalf(t, nil, err, "%v", err)
+	assert.NotEqual(t, 0, cas)
+	assert.Equal(t, 1, n)
+
+	n, cas, err = cn.Incr("n", 1, 0, 0)
+	assert.Equalf(t, nil, err, "%v", err)
+	assert.NotEqual(t, 0, cas)
+	assert.Equal(t, 2, n)
 }
