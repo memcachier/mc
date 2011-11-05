@@ -10,9 +10,26 @@
 
 		func main() {
 			// Error handling omitted for demo
-			cn, _ := mc.Dial("localhost:11211")
-			cn.Set("foo", "bar", 0, 0)
-			cn.Del("foo")
+			cn, err := mc.Dial("tcp", "localhost:11211", "myuser", "mypass")
+			if err != nil {
+				...
+			}
+
+			val, cas, err = cn.Get("foo")
+			if err != nil {
+				...
+			}
+
+			exp = 1e9 * 2 // 2 hours
+			err = cn.Set("foo", "bar", cas, exp)
+			if err != nil {
+				...
+			}
+
+			err = cn.Del("foo")
+			if err != nil {
+				...
+			}
 		}
 
 ## Please Contribute
