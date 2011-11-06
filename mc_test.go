@@ -15,9 +15,6 @@ func TestMCSimple(t *testing.T) {
 
 	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 
-	err = cn.Auth("mcgo", "foo")
-	assert.Equalf(t, nil, err, "%v", err)
-
 	err = cn.Del("foo")
 	if err != ErrNotFound {
 		assert.Equalf(t, nil, err, "%v", err)
