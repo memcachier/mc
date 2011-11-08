@@ -87,7 +87,8 @@ type header struct {
 	CAS          uint64
 }
 
-type body struct {
+type msg struct {
+	header
 	iextras []interface{}
 	oextras []interface{}
 	key     string
@@ -111,44 +112,43 @@ func Dial(nett, addr string) (*Conn, os.Error) {
 }
 
 func (cn *Conn) Get(key string) (val string, cas int, err os.Error) {
-	h := &header{
-		Op: OpGet,
-	}
-
-	b := &body{
+	m := &msg{
+		header: header{
+			Op: OpGet,
+		},
 		key: key,
 	}
 
-	err = cn.send(h, b)
+	err = cn.send(m)
 
-	return b.val, int(h.CAS), err
+	return m.val, int(m.CAS), err
 }
 
 func (cn *Conn) Set(key, val string, ocas, flags, exp int) os.Error {
-	h := &header{
-		Op:  OpSet,
-		CAS: uint64(ocas),
-	}
+	m := &msg{
+		header: header{
+			Op:  OpSet,
+			CAS: uint64(ocas),
+		},
 
-	b := &body{
 		iextras: []interface{}{uint32(flags), uint32(exp)},
 		key:     key,
 		val:     val,
 	}
 
-	return cn.send(h, b)
+	return cn.send(m)
 }
 
 func (cn *Conn) Del(key string) os.Error {
-	h := &header{
-		Op: OpDelete,
-	}
+	m := &msg{
+		header: header{
+			Op: OpDelete,
+		},
 
-	b := &body{
 		key: key,
 	}
 
-	return cn.send(h, b)
+	return cn.send(m)
 }
 
 func (cn *Conn) Incr(key string, delta, init, exp int) (n, cas int, err os.Error) {
@@ -174,77 +174,77 @@ func (cn *Conn) Auth(user, pass string) os.Error {
 }
 
 func (cn *Conn) authList() (s string, err os.Error) {
-	h := &header{
-		Op: OpAuthList,
+	m := &msg{
+		header: header{
+			Op: OpAuthList,
+		},
 	}
 
-	b := &body{}
-
-	err = cn.send(h, b)
-	return b.val, err
+	err = cn.send(m)
+	return m.val, err
 }
 
 func (cn *Conn) authPlain(user, pass string) os.Error {
-	h := &header{
-		Op: OpAuthStart,
-	}
+	m := &msg{
+		header: header{
+			Op: OpAuthStart,
+		},
 
-	b := &body{
 		key: "PLAIN",
 		val: fmt.Sprintf("\x00%s\x00%s", user, pass),
 	}
 
-	return cn.send(h, b)
+	return cn.send(m)
 }
 
 func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int, err os.Error) {
-	h := &header{
-		Op: op,
-	}
+	m := &msg{
+		header: header{
+			Op: op,
+		},
 
-	b := &body{
 		key:     key,
 		iextras: []interface{}{uint64(delta), uint64(delta), uint32(exp)},
 	}
 
-	err = cn.send(h, b)
+	err = cn.send(m)
 	if err != nil {
 		return
 	}
 
-	return readInt(b.val), int(h.CAS), nil
+	return readInt(m.val), int(m.CAS), nil
 }
 
-func (cn *Conn) send(h *header, b *body) (err os.Error) {
+func (cn *Conn) send(m *msg) (err os.Error) {
 	const magic uint8 = 0x80
 
-	h.Magic = magic
-	h.ExtraLen = sizeOfExtras(b.iextras)
-	h.KeyLen = uint16(len(b.key))
-	h.BodyLen = uint32(h.ExtraLen) + uint32(h.KeyLen) + uint32(len(b.val))
+	m.Magic = magic
+	m.ExtraLen = sizeOfExtras(m.iextras)
+	m.KeyLen = uint16(len(m.key))
+	m.BodyLen = uint32(m.ExtraLen) + uint32(m.KeyLen) + uint32(len(m.val))
 
 	cn.l.Lock()
 	defer cn.l.Unlock()
 
 	// Request
-	err = binary.Write(cn.buf, binary.BigEndian, h)
+	err = binary.Write(cn.buf, binary.BigEndian, m.header)
 	if err != nil {
 		return
 	}
 
-	for _, e := range b.iextras {
+	for _, e := range m.iextras {
 		err = binary.Write(cn.buf, binary.BigEndian, e)
 		if err != nil {
 			return
 		}
 	}
 
-	_, err = io.WriteString(cn.buf, b.key)
+	_, err = io.WriteString(cn.buf, m.key)
 	if err != nil {
 		return
 	}
 
-	_, err = io.WriteString(cn.buf, b.val)
+	_, err = io.WriteString(cn.buf, m.val)
 	if err != nil {
 		return
 	}
@@ -252,12 +252,12 @@ func (cn *Conn) send(h *header, b *body) (err os.Error) {
 	cn.buf.WriteTo(cn.rwc)
 
 	// Response
-	err = binary.Read(cn.rwc, binary.BigEndian, h)
+	err = binary.Read(cn.rwc, binary.BigEndian, &m.header)
 	if err != nil {
 		return err
 	}
 
-	bd := make([]byte, h.BodyLen)
+	bd := make([]byte, m.BodyLen)
 	_, err = io.ReadFull(cn.rwc, bd)
 	if err != nil {
 		return err
@@ -265,25 +265,25 @@ func (cn *Conn) send(h *header, b *body) (err os.Error) {
 
 	buf := bytes.NewBuffer(bd)
 
-	for _, e := range b.oextras {
+	for _, e := range m.oextras {
 		err = binary.Read(buf, binary.BigEndian, e)
 		if err != nil {
 			return
 		}
 	}
 
-	b.key = string(buf.Next(int(h.KeyLen)))
+	m.key = string(buf.Next(int(m.KeyLen)))
 
-	vlen := int(h.BodyLen) - int(h.ExtraLen) - int(h.KeyLen)
-	b.val = string(buf.Next(int(vlen)))
+	vlen := int(m.BodyLen) - int(m.ExtraLen) - int(m.KeyLen)
+	m.val = string(buf.Next(int(vlen)))
 
-	return checkError(h)
+	return checkError(m)
 }
 
-func checkError(h *header) os.Error {
-	err, ok := errMap[h.ResvOrStatus]
+func checkError(m *msg) os.Error {
+	err, ok := errMap[m.ResvOrStatus]
 	if !ok {
-		fmt.Printf("status: %d\n", h.ResvOrStatus)
+		fmt.Printf("status: %d\n", m.ResvOrStatus)
 		return os.NewError("mc: unknown error from server")
 	}
 	return err
