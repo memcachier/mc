@@ -5,6 +5,7 @@ import (
 	"github.com/bmizerany/assert"
 	"testing"
 	"net"
+	"runtime"
 )
 
 const mcAddr = "localhost:11211"
@@ -14,6 +15,11 @@ func TestMCSimple(t *testing.T) {
 	assert.Equalf(t, nil, err, "%v", err)
 
 	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
+
+	if runtime.GOOS != "darwin" {
+		err = cn.Auth("mcgo", "foo")
+		assert.Equalf(t, nil, err, "%v", err)
+	}
 
 	err = cn.Del("foo")
 	if err != ErrNotFound {
