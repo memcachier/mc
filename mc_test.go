@@ -17,6 +17,7 @@ func TestMCSimple(t *testing.T) {
 	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 
 	if runtime.GOOS != "darwin" {
+		println("Not on Darwin, testing auth")
 		err = cn.Auth("mcgo", "foo")
 		assert.Equalf(t, nil, err, "%v", err)
 	}
