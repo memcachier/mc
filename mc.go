@@ -216,9 +216,7 @@ func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int
 }
 
 func (cn *Conn) send(m *msg) (err os.Error) {
-	const magic uint8 = 0x80
-
-	m.Magic = magic
+	m.Magic = 0x80
 	m.ExtraLen = sizeOfExtras(m.iextras)
 	m.KeyLen = uint16(len(m.key))
 	m.BodyLen = uint32(m.ExtraLen) + uint32(m.KeyLen) + uint32(len(m.val))
