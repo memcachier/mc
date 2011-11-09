@@ -111,6 +111,10 @@ func Dial(nett, addr string) (*Conn, os.Error) {
 	return cn, nil
 }
 
+func (cn *Conn) Close() os.Error {
+	return cn.rwc.Close()
+}
+
 func (cn *Conn) Get(key string) (val string, cas int, err os.Error) {
 	m := &msg{
 		header: header{
