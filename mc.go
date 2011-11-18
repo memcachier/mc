@@ -3,28 +3,28 @@ package mc
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strings"
 	"sync"
 )
 
 // Errors
 var (
-	ErrNotFound       = os.NewError("mc: not found")
-	ErrKeyExists      = os.NewError("mc: key exists")
-	ErrValueTooLarge  = os.NewError("mc: value to large")
-	ErrInvalidArgs    = os.NewError("mc: invalid arguments")
-	ErrValueNotStored = os.NewError("mc: value not stored")
-	ErrNonNumeric     = os.NewError("mc: incr/decr called on non-numeric value")
-	ErrAuthRequired   = os.NewError("mc: authentication required")
-	ErrUnknownCommand = os.NewError("mc: unknown command")
-	ErrOutOfMemory    = os.NewError("mc: out of memory")
+	ErrNotFound       = errors.New("mc: not found")
+	ErrKeyExists      = errors.New("mc: key exists")
+	ErrValueTooLarge  = errors.New("mc: value to large")
+	ErrInvalidArgs    = errors.New("mc: invalid arguments")
+	ErrValueNotStored = errors.New("mc: value not stored")
+	ErrNonNumeric     = errors.New("mc: incr/decr called on non-numeric value")
+	ErrAuthRequired   = errors.New("mc: authentication required")
+	ErrUnknownCommand = errors.New("mc: unknown command")
+	ErrOutOfMemory    = errors.New("mc: out of memory")
 )
 
-var errMap = map[uint16]os.Error{
+var errMap = map[uint16]error{
 	0:    nil,
 	1:    ErrNotFound,
 	2:    ErrKeyExists,
@@ -101,7 +101,7 @@ type Conn struct {
 	buf *bytes.Buffer
 }
 
-func Dial(nett, addr string) (*Conn, os.Error) {
+func Dial(nett, addr string) (*Conn, error) {
 	nc, err := net.Dial(nett, addr)
 	if err != nil {
 		return nil, err
@@ -111,11 +111,11 @@ func Dial(nett, addr string) (*Conn, os.Error) {
 	return cn, nil
 }
 
-func (cn *Conn) Close() os.Error {
+func (cn *Conn) Close() error {
 	return cn.rwc.Close()
 }
 
-func (cn *Conn) Get(key string) (val string, cas int, err os.Error) {
+func (cn *Conn) Get(key string) (val string, cas int, err error) {
 	m := &msg{
 		header: header{
 			Op: OpGet,
@@ -128,7 +128,7 @@ func (cn *Conn) Get(key string) (val string, cas int, err os.Error) {
 	return m.val, int(m.CAS), err
 }
 
-func (cn *Conn) Set(key, val string, ocas, flags, exp int) os.Error {
+func (cn *Conn) Set(key, val string, ocas, flags, exp int) error {
 	m := &msg{
 		header: header{
 			Op:  OpSet,
@@ -143,7 +143,7 @@ func (cn *Conn) Set(key, val string, ocas, flags, exp int) os.Error {
 	return cn.send(m)
 }
 
-func (cn *Conn) Del(key string) os.Error {
+func (cn *Conn) Del(key string) error {
 	m := &msg{
 		header: header{
 			Op: OpDelete,
@@ -155,15 +155,15 @@ func (cn *Conn) Del(key string) os.Error {
 	return cn.send(m)
 }
 
-func (cn *Conn) Incr(key string, delta, init, exp int) (n, cas int, err os.Error) {
+func (cn *Conn) Incr(key string, delta, init, exp int) (n, cas int, err error) {
 	return cn.incrdecr(OpIncrement, key, delta, init, exp)
 }
 
-func (cn *Conn) Decr(key string, delta, init, exp int) (n, cas int, err os.Error) {
+func (cn *Conn) Decr(key string, delta, init, exp int) (n, cas int, err error) {
 	return cn.incrdecr(OpDecrement, key, delta, init, exp)
 }
 
-func (cn *Conn) Auth(user, pass string) os.Error {
+func (cn *Conn) Auth(user, pass string) error {
 	s, err := cn.authList()
 	if err != nil {
 		return err
@@ -177,7 +177,7 @@ func (cn *Conn) Auth(user, pass string) os.Error {
 	return fmt.Errorf("mc: unknown auth types %q", s)
 }
 
-func (cn *Conn) authList() (s string, err os.Error) {
+func (cn *Conn) authList() (s string, err error) {
 	m := &msg{
 		header: header{
 			Op: OpAuthList,
@@ -188,7 +188,7 @@ func (cn *Conn) authList() (s string, err os.Error) {
 	return m.val, err
 }
 
-func (cn *Conn) authPlain(user, pass string) os.Error {
+func (cn *Conn) authPlain(user, pass string) error {
 	m := &msg{
 		header: header{
 			Op: OpAuthStart,
@@ -201,7 +201,7 @@ func (cn *Conn) authPlain(user, pass string) os.Error {
 	return cn.send(m)
 }
 
-func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int, err os.Error) {
+func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int, err error) {
 	m := &msg{
 		header: header{
 			Op: op,
@@ -219,7 +219,7 @@ func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int
 	return readInt(m.val), int(m.CAS), nil
 }
 
-func (cn *Conn) send(m *msg) (err os.Error) {
+func (cn *Conn) send(m *msg) (err error) {
 	m.Magic = 0x80
 	m.ExtraLen = sizeOfExtras(m.iextras)
 	m.KeyLen = uint16(len(m.key))
@@ -282,11 +282,11 @@ func (cn *Conn) send(m *msg) (err os.Error) {
 	return checkError(m)
 }
 
-func checkError(m *msg) os.Error {
+func checkError(m *msg) error {
 	err, ok := errMap[m.ResvOrStatus]
 	if !ok {
 		fmt.Printf("status: %d\n", m.ResvOrStatus)
-		return os.NewError("mc: unknown error from server")
+		return errors.New("mc: unknown error from server")
 	}
 	return err
 }
