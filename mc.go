@@ -115,17 +115,19 @@ func (cn *Conn) Close() error {
 	return cn.rwc.Close()
 }
 
-func (cn *Conn) Get(key string) (val string, cas int, err error) {
+func (cn *Conn) Get(key string) (val string, cas int, flags uint32, err error) {
 	m := &msg{
 		header: header{
 			Op: OpGet,
 		},
+
+		oextras: []interface{}{&flags},
 		key: key,
 	}
 
 	err = cn.send(m)
 
-	return m.val, int(m.CAS), err
+	return m.val, int(m.CAS), flags, err
 }
 
 func (cn *Conn) Set(key, val string, ocas, flags, exp int) error {
@@ -285,7 +287,6 @@ func (cn *Conn) send(m *msg) (err error) {
 func checkError(m *msg) error {
 	err, ok := errMap[m.ResvOrStatus]
 	if !ok {
-		fmt.Printf("status: %d\n", m.ResvOrStatus)
 		return errors.New("mc: unknown error from server")
 	}
 	return err

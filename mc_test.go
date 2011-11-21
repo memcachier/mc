@@ -27,14 +27,19 @@ func TestMCSimple(t *testing.T) {
 		assert.Equalf(t, nil, err, "%v", err)
 	}
 
-	_, _, err = cn.Get("foo")
+	_, _, _, err = cn.Get("foo")
 	assert.Equalf(t, ErrNotFound, err, "%v", err)
 
 	err = cn.Set("foo", "bar", 0, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
 
+	// unconditional SET
 	err = cn.Set("foo", "bar", 0, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
+
+	v, _, _, err := cn.Get("foo")
+	assert.Equalf(t, nil, err, "%v", err)
+	assert.Equal(t, "bar", v)
 
 	err = cn.Del("n")
 	if err != ErrNotFound {
