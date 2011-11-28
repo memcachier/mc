@@ -37,6 +37,9 @@ func TestMCSimple(t *testing.T) {
 	err = cn.Set("foo", "bar", 0, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
 
+	err = cn.Set("foo", "bar", 1, 0, 0)
+	assert.Equalf(t, ErrKeyExists, err, "%v", err)
+
 	v, _, _, err := cn.Get("foo")
 	assert.Equalf(t, nil, err, "%v", err)
 	assert.Equal(t, "bar", v)
