@@ -130,6 +130,52 @@ func (cn *Conn) Get(key string) (val string, cas int, flags uint32, err error) {
 	return m.val, int(m.CAS), flags, err
 }
 
+func (cn *Conn) GetCAS(key string, ocas int) (val string, cas int, flags uint32, err error) {
+	m := &msg{
+		header: header{
+			Op:  OpGet,
+      CAS: uint64(ocas),
+		},
+
+		oextras: []interface{}{&flags},
+		key: key,
+	}
+
+	err = cn.send(m)
+
+	return m.val, int(m.CAS), flags, err
+}
+
+func (cn *Conn) Rep(key, val string, ocas, flags, exp int) error {
+	m := &msg{
+		header: header{
+			Op:  OpReplace,
+			CAS: uint64(ocas),
+		},
+
+		iextras: []interface{}{uint32(flags), uint32(exp)},
+		key:     key,
+		val:     val,
+	}
+
+	return cn.send(m)
+}
+
+func (cn *Conn) Add(key, val string, ocas, flags, exp int) error {
+	m := &msg{
+		header: header{
+			Op:  OpAdd,
+			CAS: uint64(ocas),
+		},
+
+		iextras: []interface{}{uint32(flags), uint32(exp)},
+		key:     key,
+		val:     val,
+	}
+
+	return cn.send(m)
+}
+
 func (cn *Conn) Set(key, val string, ocas, flags, exp int) error {
 	m := &msg{
 		header: header{
@@ -157,12 +203,25 @@ func (cn *Conn) Del(key string) error {
 	return cn.send(m)
 }
 
-func (cn *Conn) Incr(key string, delta, init, exp int) (n, cas int, err error) {
-	return cn.incrdecr(OpIncrement, key, delta, init, exp)
+func (cn *Conn) DelCAS(key string, ocas int) error {
+	m := &msg{
+		header: header{
+			Op:  OpDelete,
+      CAS: uint64(ocas),
+		},
+
+		key: key,
+	}
+
+	return cn.send(m)
 }
 
-func (cn *Conn) Decr(key string, delta, init, exp int) (n, cas int, err error) {
-	return cn.incrdecr(OpDecrement, key, delta, init, exp)
+func (cn *Conn) Incr(key string, delta, init, exp, ocas int) (n, cas int, err error) {
+	return cn.incrdecr(OpIncrement, key, delta, init, exp, ocas)
+}
+
+func (cn *Conn) Decr(key string, delta, init, exp, ocas int) (n, cas int, err error) {
+	return cn.incrdecr(OpDecrement, key, delta, init, exp, ocas)
 }
 
 func (cn *Conn) Auth(user, pass string) error {
@@ -203,10 +262,11 @@ func (cn *Conn) authPlain(user, pass string) error {
 	return cn.send(m)
 }
 
-func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp int) (n, cas int, err error) {
+func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp, ocas int) (n, cas int, err error) {
 	m := &msg{
 		header: header{
-			Op: op,
+			Op:  op,
+      CAS: uint64(ocas),
 		},
 
 		key:     key,
