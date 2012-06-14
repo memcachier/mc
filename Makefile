@@ -1,5 +1,5 @@
 # figure out what GOROOT is supposed to be
-GOROOT ?= $(shell printf 't:;@echo $$(GOROOT)\n' | gomake -f -)
+GOROOT ?= $(shell printf 't:;@echo $$(GOROOT)\n' | go make -f -)
 include $(GOROOT)/src/Make.inc
 
 TARG=github.com/bmizerany/mc.go
