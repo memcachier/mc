@@ -17,7 +17,7 @@ func TestMCSimple(t *testing.T) {
 
 	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != "xxx-darwin" {
 		println("Not on Darwin, testing auth")
 		err = cn.Auth("user-1", "pass")
 		assert.Equalf(t, nil, err, "%v", err)
@@ -38,8 +38,7 @@ func TestMCSimple(t *testing.T) {
 	err = cn.Set("foo", "bar", 0, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
 
-  // XXX: Doesn't work right now
-	err = cn.Set("foo", "bar", 1, 0, 0)
+	err = cn.Set("foo", "bar", 1928, 0, 0)
 	assert.Equalf(t, ErrKeyExists, err, "%v", err)
 
 	v, _, _, err := cn.Get("foo")
@@ -73,7 +72,7 @@ func TestEdges(t *testing.T) {
 
 	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != "xxx-darwin" {
 		println("Not on Darwin, testing auth")
 		err = cn.Auth("user-1", "pass")
 		assert.Equalf(t, nil, err, "%v", err)
@@ -94,7 +93,7 @@ func TestEdges(t *testing.T) {
   if err != nil {
     t.Errorf("error (goo):", err)
   }
-  _, cas2, _, err := cn.Get("goo")
+  _, _, _, err = cn.Get("goo")
   // fmt.Println("CAS (goo) =", cas2)
 
   err = cn.Set("foo", "bar", 0, 0, 0)
@@ -108,7 +107,7 @@ func TestEdges(t *testing.T) {
   if err != nil {
     t.Errorf("error (goo):", err)
   }
-  _, cas2, _, err = cn.Get("goo")
+  _, _, _, err = cn.Get("goo")
   // fmt.Println("CAS (goo) =", cas2)
 
   // set
@@ -116,11 +115,12 @@ func TestEdges(t *testing.T) {
   // fmt.Println("\nwhat happens when I set a new value and give a CAS?...")
 
   // should fail
+  cn.Del("hoo")
   err = cn.Set("hoo", "bar", 100, 0, 0)
   if err == nil {
     t.Errorf("no error (set hoo):", err)
   }
-  v, cas2, _, err := cn.Get("hoo")
+  v, _, _, err := cn.Get("hoo")
   if err == nil {
     t.Errorf("no error (get hoo):", err)
   }
@@ -216,7 +216,7 @@ func TestEdges(t *testing.T) {
   }
   v, cas1, _, err = cn.Get("foo")
   if err != nil {
-    t.Errorf("error (foo):", err)
+    t.Errorf("error (foo = %s): %v", v, err)
   } else {
     // fmt.Println("foo =", v)
   }
@@ -231,7 +231,7 @@ func TestEdges(t *testing.T) {
   if err != nil {
     t.Errorf("error (add igo):", err)
   }
-  v, cas2, _, err = cn.Get("igo")
+  v, cas2, _, err := cn.Get("igo")
   if err != nil {
     t.Errorf("error (get igo):", err)
   } else if v != "bar" {
