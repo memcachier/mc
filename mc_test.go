@@ -6,10 +6,35 @@ import (
 	"github.com/bmizerany/assert"
 	"testing"
 	"net"
+  "math/rand"
 	"runtime"
 )
 
-const mcAddr = "localhost:11211"
+const (
+  mcAddr    = "localhost:11211"
+  doAuth    = true
+  authOnMac = true
+  user      = "user-1"
+  pass      = "pass"
+)
+
+func testAuth(cn *Conn, t *testing.T) bool{
+  if !doAuth {
+    return false
+  } else if runtime.GOOS == "darwin" {
+    if !authOnMac {
+      return false
+    } else {
+      println("On Darwin but testing auth anyway")
+    }
+  } else {
+    println("Not on Darwin, testing auth")
+  }
+
+  err := cn.Auth("user-1", "pass")
+  assert.Equalf(t, nil, err, "%v", err)
+  return true
+}
 
 func TestMCSimple(t *testing.T) {
 	nc, err := net.Dial("tcp", mcAddr)
@@ -17,11 +42,7 @@ func TestMCSimple(t *testing.T) {
 
 	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 
-	if runtime.GOOS != "xxx-darwin" {
-		println("Not on Darwin, testing auth")
-		err = cn.Auth("user-1", "pass")
-		assert.Equalf(t, nil, err, "%v", err)
-	}
+	testAuth(cn, t)
 
 	err = cn.Del("foo")
 	if err != ErrNotFound {
@@ -66,17 +87,77 @@ func TestMCSimple(t *testing.T) {
 	assert.Equal(t, 1, n)
 }
 
+func TestSetBadRemovePrevious(t *testing.T) {
+  // testing if when you set a key/value with a bad value (e.g > 1MB) does that
+  // remove the existing key/value still or leave it intact?
+
+  // XXX: larger than this memcached doesn't like for key 'foo'
+  const MAX_VAL_SIZE = 1024 * 1024 - 74
+  const KEY = "foo"
+
+	nc, err := net.Dial("tcp", mcAddr)
+	assert.Equalf(t, nil, err, "%v", err)
+
+	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
+
+	testAuth(cn, t)
+
+  // check basic get/set works first
+  val := "bar"
+  err = cn.Set(KEY, val, 0, 0, 0)
+  if err != nil {
+    t.Errorf("error (foo):", err)
+  }
+  v, _, _, err := cn.Get(KEY)
+  if v != val {
+    t.Errorf("error [GET] (foo) not equal", val, ":", err)
+  }
+
+  // MAX GOOD VALUE
+
+  // generate random bytes
+  data := make([]byte, MAX_VAL_SIZE)
+  for i := 0; i < MAX_VAL_SIZE; i++ {
+    data[i] = byte(rand.Int())
+  }
+
+  val = string(data)
+  err = cn.Set(KEY, val, 0, 0, 0)
+  if err != nil {
+    t.Errorf("error (foo): %s\n", err)
+  }
+  v, _, _, err = cn.Get(KEY)
+  if v != val {
+    t.Errorf("error [GET] (foo) not equal: %s\n", err)
+  }
+
+  // MAX GOOD VALUE * 2
+
+  // generate random bytes
+  data = make([]byte, 2 * MAX_VAL_SIZE)
+  for i := 0; i < 2 * MAX_VAL_SIZE; i++ {
+    data[i] = byte(rand.Int())
+  }
+
+  val2 := string(data)
+  err = cn.Set(KEY, val2, 0, 0, 0)
+  if err == nil {
+    t.Errorf("expecting error for value too large!")
+  }
+  v, _, _, err = cn.Get(KEY)
+  if err == nil {
+    fmt.Println("\tmemcached removes the old value... so expecting no key")
+    fmt.Println("\tnot an error but just a different semantics than memcached")
+  }
+}
+
 func TestEdges(t *testing.T) {
 	nc, err := net.Dial("tcp", mcAddr)
 	assert.Equalf(t, nil, err, "%v", err)
 
 	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
 
-	if runtime.GOOS != "xxx-darwin" {
-		println("Not on Darwin, testing auth")
-		err = cn.Auth("user-1", "pass")
-		assert.Equalf(t, nil, err, "%v", err)
-	}
+  testAuth(cn, t)
 
   // fmt.Println("generally see how CAS values behave...")
 
