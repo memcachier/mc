@@ -270,7 +270,7 @@ func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp, ocas int) (n, c
 		},
 
 		key:     key,
-		iextras: []interface{}{uint64(delta), uint64(delta), uint32(exp)},
+		iextras: []interface{}{uint64(delta), uint64(init), uint32(exp)},
 	}
 
 	err = cn.send(m)
