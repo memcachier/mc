@@ -5,6 +5,7 @@ import (
   "fmt"
 	"github.com/bmizerany/assert"
 	"testing"
+  "time"
 	"net"
   "math/rand"
 	"runtime"
@@ -74,17 +75,38 @@ func TestMCSimple(t *testing.T) {
 	n, cas, err := cn.Incr("n", 1, 0, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
 	assert.NotEqual(t, 0, cas)
-	assert.Equal(t, 1, n)
+	assert.Equal(t, 0, n)
 
 	n, cas, err = cn.Incr("n", 1, 0, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
 	assert.NotEqual(t, 0, cas)
-	assert.Equal(t, 2, n)
+	assert.Equal(t, 1, n)
 
 	n, cas, err = cn.Decr("n", 1, 0, 0, 0)
 	assert.Equalf(t, nil, err, "%v", err)
 	assert.NotEqual(t, 0, cas)
-	assert.Equal(t, 1, n)
+	assert.Equal(t, 0, n)
+}
+
+func TestIncrTimeouts(t *testing.T) {
+	nc, err := net.Dial("tcp", mcAddr)
+	assert.Equalf(t, nil, err, "%v", err)
+
+	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
+
+	testAuth(cn, t)
+
+  cn.Del("n")
+  // Incr (key, delta, initial, ttl, cas)
+  n, _, err := cn.Incr("n", 1, 9, 0, 0)
+	assert.Equalf(t, nil, err, "%v", err)
+	assert.Equal(t, 9, n)
+
+  time.Sleep(2000 * time.Millisecond)
+
+	n, _, err = cn.Incr("n", 1, 3, 0, 0)
+	assert.Equalf(t, nil, err, "%v", err)
+	assert.Equal(t, 10, n)
 }
 
 func TestSetBadRemovePrevious(t *testing.T) {
