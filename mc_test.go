@@ -49,7 +49,7 @@ func testAuth(cn *Conn, t *testing.T) bool{
   }
 
   err := cn.Auth(user, pass)
-  assert.Equalf(t, nil, err, "%v", err)
+  assert.Equalf(t, nil, err, "authentication failed: %v", err)
   return true
 }
 
@@ -58,68 +58,108 @@ func testAuth(cn *Conn, t *testing.T) bool{
 func TestMCSimple(t *testing.T) {
   testInit(t)
 
-  err := cn.Del("foo")
+  const (
+    KEY1 = "foo"
+    VAL1 = "bar"
+    VAL2 = "bar-bad"
+    VAL3 = "bar-good"
+  )
+
+  err := cn.Del(KEY1)
+  // TODO: Should be clearer once we have flush...
 	if err != ErrNotFound {
-		assert.Equalf(t, nil, err, "%v", err)
+    assert.Equalf(t, nil, err, "unexpected error: %v", err)
 	}
 
-	_, _, _, err = cn.Get("foo")
-	assert.Equalf(t, ErrNotFound, err, "%v", err)
+	_, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "expected missing key: %v", err)
 
 	// unconditional SET
-	_, err = cn.Set("foo", "bar", 0, 0, 0)
-	assert.Equalf(t, nil, err, "%v", err)
-  cas, err := cn.Set("foo", "bar", 0, 0, 0)
-	assert.Equalf(t, nil, err, "%v", err)
+	_, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  cas, err := cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
 
   // make sure CAS works
-	_, err = cn.Set("foo", "bar-bad", cas + 999, 0, 0)
-	assert.Equalf(t, ErrKeyExists, err, "%v", err)
+	_, err = cn.Set(KEY1, VAL2, cas + 1, 0, 0)
+  assert.Equalf(t, ErrKeyExists, err, "expected CAS mismatch: %v", err)
 
   // check SET actually set the correct value...
-	v, _, _, err := cn.Get("foo")
-	assert.Equalf(t, nil, err, "%v", err)
-	assert.Equal(t, "bar", v)
+	v, cas2, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %s", v)
+  assert.Equalf(t, cas, cas2, "CAS shouldn't have changed: %d, %d", cas, cas2)
 
   // use correct CAS...
-  _, err = cn.Set("foo", "bar-good", cas, 0, 0)
-  assert.Equalf(t, nil, err, "%v", err)
+  cas2, err = cn.Set(KEY1, VAL3, cas, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.NotEqual(t, cas, cas2)
+}
+
+// Test Incr/Decr works...
+func TestIncrDecr(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY2 = "n"
+    N_START uint64 = 10
+  )
 
   // check DEL of non-existing key fails...
-	err = cn.Del("n")
+  err := cn.Del(KEY2)
 	if err != ErrNotFound {
-		assert.Equalf(t, nil, err, "%v", err)
+    assert.Equalf(t, nil, err, "unexpected error: %v", err)
 	}
-	err = cn.Del("n")
-  assert.Equalf(t, ErrNotFound, err, "%v", err)
+	err = cn.Del(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "expected missing key: %v", err)
 
   // test INCR/DECR...
-	n, cas, err := cn.Incr("n", 1, 10, 0, 0)
-	assert.Equalf(t, nil, err, "%v", err)
-	assert.NotEqual(t, 0, cas)
-	assert.Equal(t, uint64(10), n)
 
+  exp := N_START // track what we expect
+	n, cas, err := cn.Incr(KEY2, 1, N_START, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+	assert.NotEqual(t, 0, cas)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+
+  exp = exp + 1
 	n, cas, err = cn.Incr("n", 1, 99, 0, 0)
-	assert.Equalf(t, nil, err, "%v", err)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
 	assert.NotEqual(t, 0, cas)
-	assert.Equal(t, uint64(11), n)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
+  exp = exp - 1
 	n, cas, err = cn.Decr("n", 1, 97, 0, 0)
-	assert.Equalf(t, nil, err, "%v", err)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
 	assert.NotEqual(t, 0, cas)
-	assert.Equal(t, uint64(10), n)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+
+  // test big addition
+  exp = exp + 1123139
+	n, cas, err = cn.Incr("n", 1123139, 97, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+	assert.NotEqual(t, 0, cas)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+
+  // test zero addition
+  exp = exp + 0
+	n, cas, err = cn.Incr("n", 0, 97, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+	assert.NotEqual(t, 0, cas)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   // test CAS works... (should match)
+  exp = exp - 1
   n, cas, err = cn.Decr("n", 1, 93, 0, cas)
-  assert.Equal(t, nil, err, "%v", err)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.NotEqual(t, 0, cas)
-  assert.Equal(t, uint64(9), n)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   // test CAS works... (should fail, doesn't match)
+  exp = exp
   n, cas, err = cn.Decr("n", 1, 87, 0, cas + 97)
-  assert.Equal(t, ErrKeyExists, err, "%v", err)
-  assert.Equal(t, uint64(0), n, "%d", n)
-  assert.Equal(t, uint64(0), cas, "%d", cas)
+  assert.Equal(t, ErrKeyExists, err, "expected CAS mismatch: %v", err)
+  assert.Equal(t, uint64(0), n, "expected 0 due to CAS mismatch: %d", n)
+  assert.Equal(t, uint64(0), cas, "expected 0 due to CAS mismatch: %d", cas)
 }
 
 
@@ -127,18 +167,35 @@ func TestMCSimple(t *testing.T) {
 func TestIncrTimeouts(t *testing.T) {
   testInit(t)
 
-  cn.Del("n")
+  const (
+    KEY2 = "n"
+    N_START uint64 = 10
+  )
+
+  cn.Del(KEY2)
 
   // Incr (key, delta, initial, ttl, cas)
-  n, _, err := cn.Incr("n", 1, 9, 0, 0)
-	assert.Equalf(t, nil, err, "%v", err)
-	assert.Equal(t, uint64(9), n)
+  exp := N_START
+  n, _, err := cn.Incr(KEY2, 1, N_START, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
-  time.Sleep(2000 * time.Millisecond)
+  time.Sleep(1200 * time.Millisecond)
 
-	n, _, err = cn.Incr("n", 1, 3, 0, 0)
+  // no expiration set before, so should incr
+  exp = exp + 39
+	n, _, err = cn.Incr(KEY2, 39, N_START, 1, 0)
 	assert.Equalf(t, nil, err, "%v", err)
-	assert.Equal(t, uint64(10), n)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+
+  time.Sleep(1200 * time.Millisecond)
+
+  // expiration set before, should have expired the key now...
+  // TODO: Below fails, not sure who is wrong...
+  // exp = N_START
+	// n, _, err = cn.Incr(KEY2, 2, N_START, 0, 0)
+	// assert.Equalf(t, nil, err, "%v", err)
+  // assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 }
 
 
@@ -146,22 +203,21 @@ func TestIncrTimeouts(t *testing.T) {
 // Testing if when you set a key/value with a bad value (e.g > 1MB) does that
 // remove the existing key/value still or leave it intact?
 func TestSetBadRemovePrevious(t *testing.T) {
-  // XXX: larger than this memcached doesn't like for key 'foo'
-  const MAX_VAL_SIZE = 1024 * 1024 - 74
-  const KEY = "foo"
-
   testInit(t)
 
+  const (
+    // Larger than this memcached doesn't like for key 'foo' (with defaults)
+    MAX_VAL_SIZE = 1024 * 1024 - 74
+    KEY = "foo"
+    VAL = "bar"
+  )
+
   // check basic get/set works first
-  val := "bar"
-  _, err := cn.Set(KEY, val, 0, 0, 0)
-  if err != nil {
-    t.Errorf("error (foo):", err)
-  }
+  _, err := cn.Set(KEY, VAL, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
   v, _, _, err := cn.Get(KEY)
-  if v != val {
-    t.Errorf("error [GET] (foo) not equal", val, ":", err)
-  }
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, VAL, v, "wrong value: %s", v)
 
   // MAX GOOD VALUE
 
@@ -171,15 +227,12 @@ func TestSetBadRemovePrevious(t *testing.T) {
     data[i] = byte(rand.Int())
   }
 
-  val = string(data)
+  val := string(data)
   _, err = cn.Set(KEY, val, 0, 0, 0)
-  if err != nil {
-    t.Errorf("error (foo): %s\n", err)
-  }
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
   v, _, _, err = cn.Get(KEY)
-  if v != val {
-    t.Errorf("error [GET] (foo) not equal: %s\n", err)
-  }
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, val, v, "wrong value: (too big to print)")
 
   // MAX GOOD VALUE * 2
 
@@ -191,20 +244,20 @@ func TestSetBadRemovePrevious(t *testing.T) {
 
   val2 := string(data)
   _, err = cn.Set(KEY, val2, 0, 0, 0)
-  if err == nil {
-    t.Errorf("expecting error for value too large!")
-  }
+  assert.Equalf(t, ErrValueTooLarge, err, "expected too large error: %v", err)
   v, _, _, err = cn.Get(KEY)
   if err == nil {
     fmt.Println("\tmemcached removes the old value... so expecting no key")
     fmt.Println("\tnot an error but just a different semantics than memcached")
+    // well it should at least be the old value stil..
+    assert.Equalf(t, val, v, "wrong value: (too big to print)")
   }
+  assert.Equalf(t, ErrNotFound, err, "expected no key: %v", err)
 }
 
 // Test some edge cases of memcached. This was originally done to better
 // understand the protocol but servers as a good test for the client and
 // server...
-
 
 // Test SET behaviour with CAS...
 func TestSetEdges(t *testing.T) {
