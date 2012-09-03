@@ -15,7 +15,7 @@ func BenchmarkSet(b *testing.B) {
 	defer b.StopTimer()
 
 	for i := 0; i < b.N; i++ {
-		err = cn.Set("foo", "bar", 0, 0, 0)
+		_, err = cn.Set("foo", "bar", 0, 0, 0)
 		if err != nil {
 			panic(err)
 		}

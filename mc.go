@@ -1,381 +1,334 @@
+// Memcache client for Go.
 package mc
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"io"
-	"net"
-	"strings"
-	"sync"
+  "fmt"
 )
 
-// Errors
-var (
-	ErrNotFound       = errors.New("mc: not found")
-	ErrKeyExists      = errors.New("mc: key exists")
-	ErrValueTooLarge  = errors.New("mc: value to large")
-	ErrInvalidArgs    = errors.New("mc: invalid arguments")
-	ErrValueNotStored = errors.New("mc: value not stored")
-	ErrNonNumeric     = errors.New("mc: incr/decr called on non-numeric value")
-	ErrAuthRequired   = errors.New("mc: authentication required")
-	ErrUnknownCommand = errors.New("mc: unknown command")
-	ErrOutOfMemory    = errors.New("mc: out of memory")
-)
+// TODO: Stat, check byte ordering is correct...
 
-var errMap = map[uint16]error{
-	0:    nil,
-	1:    ErrNotFound,
-	2:    ErrKeyExists,
-	3:    ErrValueTooLarge,
-	4:    ErrInvalidArgs,
-	5:    ErrValueNotStored,
-	6:    ErrNonNumeric,
-	0x20: ErrAuthRequired,
-	0x81: ErrUnknownCommand,
-	0x82: ErrOutOfMemory,
+// TODO: calling incr/decr on a non-numeric returns an error BUT also seems to
+//       remove it from the cache...
+
+// Protocol:
+// Contains the actual memcache commands a user cares about.
+// We document the protocol a little with each command, you can find the
+// official documentation at:
+// * https://github.com/memcached/memcached/blob/master/doc/protocol-binary.xml
+// * https://github.com/memcached/memcached/blob/master/doc/protocol.txt
+// * http://code.google.com/p/memcached/wiki/SASLAuthProtocol
+// * http://tools.ietf.org/html/rfc4422 (SASL)
+// However, sadly none of these are 100% accurate and you have to look at the
+// memcached source code to find any missing cases or mismatches.
+
+// Command Variants:
+// One quick note on memcache commands, many of them support the following
+// variants [R, Q, K, KQ], e.g., GET can be GETK or GETQ...
+// * <cmd>K : Include the KEY in the response.
+// * <cmd>Q : Quiet version of a command. This means if the key doesn't exist,
+//            no response is sent.
+// * R<cmd> : Ranged version of the command. Not actually implemented by
+//            memcached, just there for future extension if needed. So we
+//            ignore in this client.
+
+// Multi-Get:
+// Simply implemented using GETQ. It's used for 'pipelining' requests, where the
+// client sends many GETQ's without checking the response until the very end
+// (batching). The memcached server doesn't do anything special, it sends
+// response straight away, so it relies on the clients socket queuing up the
+// responses on its buffer.
+
+// Response:
+// In addition to the key, value & extras we always get back in a response the
+// status, CAS and opaque (although a user of a memcache client probably never
+// cares about opaque, only we, the implementer of a memcache client, may care
+// as it can be used for matching request with responses...)
+
+// Retrieve a value from the cache.
+func (cn *Conn) Get(key string) (val string, cas uint64, flags uint32, err error) {
+  // Variants: [R] Get [Q, K, KQ]
+  // Request : MUST key; MUST NOT value, extras
+  // Response: MAY key, value, extras ([0..3] flags)
+  return cn.getCAS(key, 0)
 }
 
-// Ops
-const (
-	OpGet = uint8(iota)
-	OpSet
-	OpAdd
-	OpReplace
-	OpDelete
-	OpIncrement
-	OpDecrement
-	OpQuit
-	OpFlush
-	OpGetQ
-	OpNoop
-	OpVersion
-	OpGetK
-	OpGetKQ
-	OpAppend
-	OpPrepend
-	OpStat
-	OpSetQ
-	OpAddQ
-	OpReplaceQ
-	OpDeleteQ
-	OpIncrementQ
-	OpDecrementQ
-	OpQuitQ
-	OpFlushQ
-	OpAppendQ
-	OpPrependQ
-)
-
-// Auth Ops
-const (
-	OpAuthList = uint8(iota + 0x20)
-	OpAuthStart
-	OpAuthStep
-)
-
-type header struct {
-	Magic        uint8
-	Op           uint8
-	KeyLen       uint16
-	ExtraLen     uint8
-	DataType     uint8
-	ResvOrStatus uint16
-	BodyLen      uint32
-	Opaque       uint32
-	CAS          uint64
-}
-
-type msg struct {
-	header
-	iextras []interface{}
-	oextras []interface{}
-	key     string
-	val     string
-}
-
-type Conn struct {
-	rwc io.ReadWriteCloser
-	l   sync.Mutex
-	buf *bytes.Buffer
-}
-
-func Dial(nett, addr string) (*Conn, error) {
-	nc, err := net.Dial(nett, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
-	return cn, nil
-}
-
-func (cn *Conn) Close() error {
-	return cn.rwc.Close()
-}
-
-func (cn *Conn) Get(key string) (val string, cas int, flags uint32, err error) {
-	m := &msg{
-		header: header{
-			Op: OpGet,
-		},
-
-		oextras: []interface{}{&flags},
-		key: key,
-	}
-
-	err = cn.send(m)
-
-	return m.val, int(m.CAS), flags, err
-}
-
-func (cn *Conn) GetCAS(key string, ocas int) (val string, cas int, flags uint32, err error) {
+// Retrieve a value in the cache but only if the CAS specified matches the CAS
+// argument.
+//
+// NOTE: GET doesn't actually care about CAS, but we want this internally for
+// testing purposes, to be able to test that a memcache server obeys the proper
+// semantics of ignoring CAS with GETs.
+func (cn *Conn) getCAS(key string, ocas uint64) (val string, cas uint64, flags uint32, err error) {
 	m := &msg{
 		header: header{
 			Op:  OpGet,
       CAS: uint64(ocas),
 		},
-
 		oextras: []interface{}{&flags},
 		key: key,
 	}
 
 	err = cn.send(m)
-
-	return m.val, int(m.CAS), flags, err
+	return m.val, m.CAS, flags, err
 }
 
-func (cn *Conn) Rep(key, val string, ocas, flags, exp int) error {
-	m := &msg{
-		header: header{
-			Op:  OpReplace,
-			CAS: uint64(ocas),
-		},
+// Get and Touch. Both get the value associated with the key and update its
+// expiration time.
+// TODO: takes a CAS?
+func (cn *Conn) GAT(key string, exp uint32) (val string, cas uint64, flags uint32, err error) {
+  // Variants: GAT [Q, K, KQ]
+  // Request : MUST key, extras; MUST NOT value
+  // Response: MAY key, value, extras ([0..3] flags)
+  m := &msg{
+    header: header{
+      Op: OpGAT,
+    },
+		iextras: []interface{}{exp},
+    oextras: []interface{}{&flags},
+  }
 
-		iextras: []interface{}{uint32(flags), uint32(exp)},
-		key:     key,
-		val:     val,
-	}
-
-	return cn.send(m)
+  err = cn.send(m)
+  return m.val, m.CAS, flags, err
 }
 
-func (cn *Conn) Add(key, val string, ocas, flags, exp int) error {
-	m := &msg{
-		header: header{
-			Op:  OpAdd,
-			CAS: uint64(ocas),
-		},
+func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
+  // Variants: Touch
+  // Request : MUST key, extras; MUST NOT value
+  // Response: MUST NOT key, value, extras
+  m := &msg{
+    header: header{
+      Op: OpTouch,
+    },
+		iextras: []interface{}{exp},
+    key: key,
+  }
 
-		iextras: []interface{}{uint32(flags), uint32(exp)},
-		key:     key,
-		val:     val,
-	}
-
-	return cn.send(m)
+  err = cn.send(m)
+  return m.CAS, err
 }
 
-func (cn *Conn) Set(key, val string, ocas, flags, exp int) error {
-	m := &msg{
-		header: header{
-			Op:  OpSet,
-			CAS: uint64(ocas),
-		},
-
-		iextras: []interface{}{uint32(flags), uint32(exp)},
-		key:     key,
-		val:     val,
-	}
-
-	return cn.send(m)
+// Set a key/value pair in the cache.
+func (cn *Conn) Set(key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error){
+  // Variants: [R] Set [Q]
+  return cn.setGeneric(OpSet, key, val, ocas, flags, exp)
 }
 
-func (cn *Conn) Del(key string) error {
-	m := &msg{
-		header: header{
-			Op: OpDelete,
-		},
-
-		key: key,
-	}
-
-	return cn.send(m)
+// Replace an existing key/value in the cache. Fails if key doesn't already
+// exist in cache.
+func (cn *Conn) Rep(key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error){
+  // Variants: Rep [Q]
+  return cn.setGeneric(OpReplace, key, val, ocas, flags, exp)
 }
 
-func (cn *Conn) DelCAS(key string, ocas int) error {
-	m := &msg{
-		header: header{
-			Op:  OpDelete,
-      CAS: uint64(ocas),
-		},
-
-		key: key,
-	}
-
-	return cn.send(m)
+// Add a new key/value to the cache. Fails if the key already exists in the
+// cache.
+func (cn *Conn) Add(key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
+  // Variants: Add [Q]
+  return cn.setGeneric(OpAdd, key, val, ocas, flags, exp)
 }
 
-func (cn *Conn) Incr(key string, delta, init, exp, ocas int) (n, cas int, err error) {
-	return cn.incrdecr(OpIncrement, key, delta, init, exp, ocas)
-}
-
-func (cn *Conn) Decr(key string, delta, init, exp, ocas int) (n, cas int, err error) {
-	return cn.incrdecr(OpDecrement, key, delta, init, exp, ocas)
-}
-
-func (cn *Conn) Auth(user, pass string) error {
-	s, err := cn.authList()
-	if err != nil {
-		return err
-	}
-
-	switch {
-	case strings.Index(s, "PLAIN") != -1:
-		return cn.authPlain(user, pass)
-	}
-
-	return fmt.Errorf("mc: unknown auth types %q", s)
-}
-
-func (cn *Conn) authList() (s string, err error) {
-	m := &msg{
-		header: header{
-			Op: OpAuthList,
-		},
-	}
-
-	err = cn.send(m)
-	return m.val, err
-}
-
-func (cn *Conn) authPlain(user, pass string) error {
-	m := &msg{
-		header: header{
-			Op: OpAuthStart,
-		},
-
-		key: "PLAIN",
-		val: fmt.Sprintf("\x00%s\x00%s", user, pass),
-	}
-
-	return cn.send(m)
-}
-
-func (cn *Conn) incrdecr(op uint8, key string, delta, init, exp, ocas int) (n, cas int, err error) {
+// Set/Add/Rep a key/value pair in the cache.
+func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
+  // Request : MUST key, value, extras ([0..3] flags, [4..7] expiration)
+  // Response: MUST NOT key, value, extras
+  // CAS: If a CAS is specified (non-zero), all sets only succeed if the key
+  //      exists and has the CAS specified. Otherwise, an error is returned.
 	m := &msg{
 		header: header{
 			Op:  op,
-      CAS: uint64(ocas),
+			CAS: ocas,
 		},
-
+		iextras: []interface{}{flags, exp},
 		key:     key,
-		iextras: []interface{}{uint64(delta), uint64(init), uint32(exp)},
+		val:     val,
+	}
+
+	err = cn.send(m)
+	return m.CAS, err
+}
+
+// Increment a value in the cache. The value must be an unsigned 64bit integer
+// stored as an ASCII string. It will wrap when incremented outside the range.
+func (cn *Conn) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+	return cn.incrdecr(OpIncrement, key, delta, init, exp, ocas)
+}
+
+// Decrement a value in the cache. The value must be an unsigned 64bit integer
+// stored as an ASCII string. It can't be decremented below 0.
+func (cn *Conn) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+	return cn.incrdecr(OpDecrement, key, delta, init, exp, ocas)
+}
+
+// Incr/Decr a key/value pair in the cache.
+func (cn *Conn) incrdecr(op opCode, key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+  // Variants: [R] Incr [Q], [R] Decr [Q]
+  // Request : MUST key, extras; MUST NOT value
+  //   Extras: [ 0.. 7] Amount to add/sub
+  //           [ 8..15] Initial value for counter (if key doesn't exist)
+  //           [16..20] Expiration
+  // Response: MUST value; MUST NOT key, extras
+
+  // * response value is 64 bit unsigned binary number.
+  // * if the key doesn't exist and the expiration is all 1's (0xffffffff) then
+  //   the operation will fail with NOT_FOUND.
+	m := &msg{
+		header: header{
+			Op:  op,
+      CAS: ocas,
+		},
+		iextras: []interface{}{delta, init, exp},
+		key:     key,
 	}
 
 	err = cn.send(m)
 	if err != nil {
 		return
 	}
-
-	return readInt(m.val), int(m.CAS), nil
+  // value is returned as an unsigned 64bit integer (i.e., not as a string)
+	return readInt(m.val), m.CAS, nil
 }
 
-func (cn *Conn) send(m *msg) (err error) {
-	m.Magic = 0x80
-	m.ExtraLen = sizeOfExtras(m.iextras)
-	m.KeyLen = uint16(len(m.key))
-	m.BodyLen = uint32(m.ExtraLen) + uint32(m.KeyLen) + uint32(len(m.val))
-
-	cn.l.Lock()
-	defer cn.l.Unlock()
-
-	// Request
-	err = binary.Write(cn.buf, binary.BigEndian, m.header)
-	if err != nil {
-		return
-	}
-
-	for _, e := range m.iextras {
-		err = binary.Write(cn.buf, binary.BigEndian, e)
-		if err != nil {
-			return
-		}
-	}
-
-	_, err = io.WriteString(cn.buf, m.key)
-	if err != nil {
-		return
-	}
-
-	_, err = io.WriteString(cn.buf, m.val)
-	if err != nil {
-		return
-	}
-
-	cn.buf.WriteTo(cn.rwc)
-
-	// Response
-	err = binary.Read(cn.rwc, binary.BigEndian, &m.header)
-	if err != nil {
-		return err
-	}
-
-	bd := make([]byte, m.BodyLen)
-	_, err = io.ReadFull(cn.rwc, bd)
-	if err != nil {
-		return err
-	}
-
-	buf := bytes.NewBuffer(bd)
-
-	for _, e := range m.oextras {
-		err = binary.Read(buf, binary.BigEndian, e)
-		if err != nil {
-			return
-		}
-	}
-
-	m.key = string(buf.Next(int(m.KeyLen)))
-
-	vlen := int(m.BodyLen) - int(m.ExtraLen) - int(m.KeyLen)
-	m.val = string(buf.Next(int(vlen)))
-
-	return checkError(m)
-}
-
-func checkError(m *msg) error {
-	err, ok := errMap[m.ResvOrStatus]
-	if !ok {
-		return errors.New("mc: unknown error from server")
-	}
-	return err
-}
-
-func sizeOfExtras(extras []interface{}) (l uint8) {
-	for _, e := range extras {
-		switch e.(type) {
-		default:
-			panic(fmt.Sprintf("mc: unknown extra type (%T)", e))
-		case uint8:
-			l += 8 / 8
-		case uint16:
-			l += 16 / 8
-		case uint32:
-			l += 32 / 8
-		case uint64:
-			l += 64 / 8
-		}
-	}
-	return
-}
-
-func readInt(b string) int {
+// Convert string stored to an uint64 (where no actual byte changes are needed).
+func readInt(b string) uint64 {
+  // TODO: fix... Should be able to just force the cast as we don't need to do
+  // any byte changes..
 	switch len(b) {
 	case 8: // 64 bit
-		return int(uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+		return uint64(uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
 			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56)
 	}
 
 	panic(fmt.Sprintf("mc: don't know how to parse string with %d bytes", len(b)))
 }
+
+// Append the value to the existing value for the key specified. An error is
+// thrown if the key doesn't exist.
+func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err error) {
+  // Variants: [R] Append [Q]
+  // Request : MUST key, value; MUST NOT extras
+  // Response: MUST NOT key, value, extras
+  m := &msg{
+    header: header{
+      Op: OpAppend,
+			CAS: ocas,
+    },
+    key: key,
+    val: val,
+  }
+
+  err = cn.send(m)
+  return m.CAS, err
+}
+
+// Prepend the value to the existing value for the key specified. An error is
+// thrown if the key doesn't exist.
+func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
+  // Variants: [R] Append [Q]
+  // Request : MUST key, value; MUST NOT extras
+  // Response: MUST NOT key, value, extras
+  m := &msg{
+    header: header{
+      Op: OpPrepend,
+			CAS: ocas,
+    },
+    key: key,
+    val: val,
+  }
+
+  err = cn.send(m)
+  return m.CAS, err
+}
+
+// Delete a key/value from the cache.
+func (cn *Conn) Del(key string) error {
+  return cn.DelCAS(key, 0)
+}
+
+// Delete a key/value from the cache but only if the CAS specified matches the
+// CAS in the cache.
+func (cn *Conn) DelCAS(key string, cas uint64) error {
+  // Variants: [R] Del [Q]
+  // Request : MUST key; MUST NOT value, extras
+  // Response: MUST NOT key, value, extras
+	m := &msg{
+		header: header{
+			Op:  OpDelete,
+      CAS: cas,
+		},
+		key: key,
+	}
+
+	return cn.send(m)
+}
+
+// Flush the cache, that is, invalidate all keys. Note, this doesn't typically
+// free memory on a memcache server (doing so compromises the O(1) nature of
+// memcache). Instead nearly all servers do lazy expiration, where they don't
+// free memory but won't return any keys to you that have expired.
+func (cn *Conn) Flush(when uint32) (err error) {
+  // Variants: Flush [Q]
+  // Request : MUST NOT key, value; MAY extras ([0..3] expiration)
+  // Response: MUST NOT key, value, extras
+
+  // optional expiration means that the flush won't become active until that
+  // point in time, hence why the argument is called 'when' as that is more
+  // descriptive of its function.
+  m := &msg{
+    header: header{
+      Op: OpFlush,
+    },
+		iextras: []interface{}{when},
+    // TODO: not sure if send handles messages that don't have keys...
+  }
+
+  return cn.send(m)
+}
+
+// Send a No-Op message to the memcache server. This can be used as a heartbeat
+// for the server to check it's functioning fine still.
+func (cn *Conn) NoOp() (err error) {
+  // Variants: NoOp
+  // Request : MUST NOT key, value, extras
+  // Response: MUST NOT key, value, extras
+  m := &msg{
+    header: header{
+      Op: OpNoop,
+    },
+  }
+
+  return cn.send(m)
+}
+
+// Get the version of the memcached server connected to.
+func (cn *Conn) Version() (ver string, err error) {
+  // Variants: Version
+  // Request : MUST NOT key, value, extras
+  // Response: MUST NOT key, extras; MUST value
+
+  // value is the version as a string in form "X.Y.Z"
+  m := &msg{
+    header: header{
+      Op: OpVersion,
+    },
+  }
+
+  err = cn.send(m)
+  return m.val, err
+}
+
+// Close connection with memcache server (nicely).
+func (cn *Conn) Quit() (err error) {
+  // Variants: Quit [Q]
+  // Request : MUST NOT key, value, extras
+  // Response: MUST NOT key, value, extras
+  m := &msg{
+    header: header{
+      Op: OpQuit,
+    },
+  }
+
+  err = cn.send(m)
+  cn.Close();
+  return
+}
+
