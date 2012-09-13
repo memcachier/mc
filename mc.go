@@ -122,6 +122,7 @@ func (cn *Conn) Rep(key, val string, ocas uint64, flags, exp uint32) (cas uint64
 
 // Add a new key/value to the cache. Fails if the key already exists in the
 // cache.
+// TODO: CAS makes no sense with Add as key should be new
 func (cn *Conn) Add(key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
   // Variants: Add [Q]
   return cn.setGeneric(OpAdd, key, val, ocas, flags, exp)
