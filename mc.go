@@ -6,9 +6,7 @@ import (
 )
 
 // TODO: Stat, check byte ordering is correct...
-
-// TODO: calling incr/decr on a non-numeric returns an error BUT also seems to
-//       remove it from the cache...
+// TODO: Doesn't actually support multiple nodes...
 
 // Protocol:
 // Contains the actual memcache commands a user cares about.
@@ -122,10 +120,9 @@ func (cn *Conn) Rep(key, val string, ocas uint64, flags, exp uint32) (cas uint64
 
 // Add a new key/value to the cache. Fails if the key already exists in the
 // cache.
-// TODO: CAS makes no sense with Add as key should be new
-func (cn *Conn) Add(key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
+func (cn *Conn) Add(key, val string, flags, exp uint32) (cas uint64, err error) {
   // Variants: Add [Q]
-  return cn.setGeneric(OpAdd, key, val, ocas, flags, exp)
+  return cn.setGeneric(OpAdd, key, val, 0, flags, exp)
 }
 
 // Set/Add/Rep a key/value pair in the cache.
@@ -191,8 +188,6 @@ func (cn *Conn) incrdecr(op opCode, key string, delta, init uint64, exp uint32, 
 
 // Convert string stored to an uint64 (where no actual byte changes are needed).
 func readInt(b string) uint64 {
-  // TODO: fix... Should be able to just force the cast as we don't need to do
-  // any byte changes..
 	switch len(b) {
 	case 8: // 64 bit
 		return uint64(uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
@@ -279,7 +274,6 @@ func (cn *Conn) Flush(when uint32) (err error) {
       Op: OpFlush,
     },
 		iextras: []interface{}{when},
-    // TODO: not sure if send handles messages that don't have keys...
   }
 
   return cn.send(m)
