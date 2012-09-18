@@ -1,14 +1,12 @@
 package mc
 
 import (
-	"bytes"
   "fmt"
 	"github.com/bmizerany/assert"
 	"testing"
   "time"
-	"net"
   "math/rand"
-	"runtime"
+  "regexp"
   "strconv"
 )
 
@@ -23,38 +21,6 @@ const (
 // shared connection
 var cn *Conn = nil
 
-// start connection
-func testInit(t *testing.T) *Conn {
-  if cn == nil {
-    nc, err := net.Dial("tcp", mcAddr)
-    assert.Equalf(t, nil, err, "%v", err)
-    cn = &Conn{rwc: nc, buf: new(bytes.Buffer)}
-    testAuth(cn, t)
-    // TODO: Should start with a flush...
-  }
-  return cn
-}
-
-// login if required...
-func testAuth(cn *Conn, t *testing.T) bool{
-  if !doAuth {
-    return false
-  } else if runtime.GOOS == "darwin" {
-    if !authOnMac {
-      return false
-    } else {
-      println("On Darwin but testing auth anyway")
-    }
-  } else {
-    println("Not on Darwin, testing auth")
-  }
-
-  err := cn.Auth(user, pass)
-  assert.Equalf(t, nil, err, "authentication failed: %v", err)
-  return true
-}
-
-
 // Some basic tests that functions work
 func TestMCSimple(t *testing.T) {
   testInit(t)
@@ -66,13 +32,7 @@ func TestMCSimple(t *testing.T) {
     VAL3 = "bar-good"
   )
 
-  err := cn.Del(KEY1)
-  // TODO: Should be clearer once we have flush...
-	if err != ErrNotFound {
-    assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	}
-
-	_, _, _, err = cn.Get(KEY1)
+  _, _, _, err := cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "expected missing key: %v", err)
 
 	// unconditional SET
@@ -273,7 +233,7 @@ func TestAdd(t *testing.T) {
   cn.Del(KEY1)
 
   // check add works... (key not already present)
-  _, err := cn.Add(KEY1, VAL1, 0, 0, 0)
+  _, err := cn.Add(KEY1, VAL1, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error adding key: %v", err)
 
   v, _, _, err := cn.Get(KEY1)
@@ -281,19 +241,13 @@ func TestAdd(t *testing.T) {
   assert.Equalf(t, v, VAL1, "unexpected value for key: %v", v)
 
   // check add works... (key already present)
-  _, err = cn.Add(KEY1, VAL1, 0, 0, 0)
+  _, err = cn.Add(KEY1, VAL1, 0, 0)
   assert.Equalf(t, ErrKeyExists, err,
     "expected an error adding existing key: %v", err)
 
   v, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error getting key: %v", err)
   assert.Equalf(t, v, VAL1, "unexpected value for key: %v", v)
-
-  // what happens when I add a new value and give a CAS?...
-  cn.Del(KEY1)
-  _, err = cn.Add(KEY1, VAL1, 100, 0, 0)
-  assert.Equalf(t, ErrNotFound, err,
-    "expected an error adding new key with a CAS: %v", err)
 }
 
 
@@ -404,6 +358,39 @@ func TestDelete(t *testing.T) {
   v, cas1, _, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err,
     "delete with wrong CAS seems to have succeeded: %v", err)
+}
+
+
+// Test behaviour of errors and cache removal.
+// TODO: calling incr/decr on a non-numeric returns an error BUT also seems to
+//       remove it from the cache...
+// NOTE: I think above may have been a bug present in memcache 1.4.12 but is
+//       fixed in 1.4.13...
+func TestIncrDecrNonNumeric(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "n"
+    N_START uint64 = 10
+    N_VAL = "11211"
+    VAL = "nup"
+  )
+
+  _, err := cn.Set(KEY1, VAL, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  v, _, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, v, VAL, "wrong value: %v", v)
+
+  _, _, err = cn.Incr(KEY1, 1, N_START, 0, 0)
+  assert.Equalf(t, ErrNonNumeric, err, "unexpected error: %v", err)
+
+  _, _, err = cn.Decr(KEY1, 1, N_START, 0, 0)
+  assert.Equalf(t, ErrNonNumeric, err, "unexpected error: %v", err)
+
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, v, VAL, "wrong value: %v", v)
 }
 
 
@@ -530,7 +517,7 @@ func TestIncrTimeouts(t *testing.T) {
   // assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 }
 
-// TODO: Test Touch, GAT, Flush, NoOp, Version, Quit
+// TODO: Test Touch, GAT
 
 // Test Append works...
 func TestAppend(t *testing.T) {
@@ -643,5 +630,176 @@ func TestPrepend(t *testing.T) {
   v, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, v, "wrong value: %s", v)
+}
+
+
+// Test NoOp works... (by putting NoOps all between the prepend tests)
+func TestNoOp(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    KEY2 = "goo"
+    VAL1 = "moo"
+    VAL2 = "bar"
+  )
+
+  err := cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+  err = cn.NoOp()
+  err = cn.NoOp()
+  err = cn.NoOp()
+  err = cn.NoOp()
+  err = cn.NoOp()
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+
+  cn.Del(KEY1)
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+  cn.Del(KEY2)
+
+	// normal append
+  exp := VAL1
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+  exp = VAL2 + exp
+  _, err = cn.Prepend(KEY1, VAL2, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+	v, _, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, v, "wrong value: %s", v)
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+
+  // append to non-existent value
+  exp = VAL1
+  _, err = cn.Prepend(KEY2, VAL1, 0)
+  assert.Equalf(t, ErrValueNotStored, err,
+    "expected value not stored error: %v", err)
+	v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
+
+  // check CAS works...
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+	v, cas, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  exp = v
+  _, err = cn.Prepend(KEY1, VAL2, cas + 1)
+  assert.Equalf(t, ErrKeyExists, err, "expected key exists error: %v", err)
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  v, cas2, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, v, "wrong value: %s", v)
+  assert.Equalf(t, cas, cas2, "CAS shouldn't have changed: %d != %d", cas, cas2)
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+  exp = VAL2 + exp
+  _, err = cn.Prepend(KEY1, VAL2, cas)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  exp = VAL1 + exp
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+
+  // check 0 CAS...
+  _, err = cn.Prepend(KEY1, VAL1, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, v, "wrong value: %s", v)
+  err = cn.NoOp()
+  assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
+}
+
+
+// Test Flush behaviour with CAS...
+func TestFlush(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    KEY2 = "goo"
+    VAL1 = "bar"
+    VAL2 = "zar"
+  )
+
+  err := cn.Flush(0)
+  assert.Equalf(t, nil, err, "flush produced error: %v", err)
+
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  v, _, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+
+  err = cn.Flush(0)
+  assert.Equalf(t, nil, err, "flush produced error: %v", err)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+
+  // do two sets of same key, make sure CAS changes...
+  cas1, err := cn.Set(KEY2, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  cas2, err := cn.Set(KEY2, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.NotEqual(t, cas1, cas2, "CAS don't match: %d == %d", cas1, cas2)
+
+  // try to get back the vals...
+  err = cn.Flush(0)
+  assert.Equalf(t, nil, err, "flush produced error: %v", err)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+
+  err = cn.Del(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  err = cn.Del(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+}
+
+
+// Test the version command works...
+func TestVersion(t *testing.T) {
+  testInit(t)
+
+  ver, err := cn.Version()
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  good, err := regexp.MatchString("[0-9]+\\.[0-9]+\\.[0-9]+", ver)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, good, true, "version of unexcpected form: %s", ver)
+}
+
+
+// Test the quit command works...
+func TestQuit(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    VAL1 = "bar"
+  )
+
+  _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+
+	v, _, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %s", v)
+
+  err = cn.Quit()
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+
+	_, _, _, err = cn.Get(KEY1)
+  assert.NotEqual(t, nil, err, "expected an error (closed connection)")
+
+  err = cn.Quit()
+  assert.NotEqual(t, nil, err, "expected an error (closed connection)")
 }
 
