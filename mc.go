@@ -85,7 +85,6 @@ func (cn *Conn) getCAS(key string, ocas uint64) (val string, cas uint64, flags u
 
 // Get and Touch. Both get the value associated with the key and update its
 // expiration time.
-// TODO: takes a CAS?
 func (cn *Conn) GAT(key string, exp uint32) (val string, cas uint64, flags uint32, err error) {
   // Variants: GAT [Q, K, KQ]
   // Request : MUST key, extras; MUST NOT value
@@ -96,6 +95,7 @@ func (cn *Conn) GAT(key string, exp uint32) (val string, cas uint64, flags uint3
     },
 		iextras: []interface{}{exp},
     oextras: []interface{}{&flags},
+    key: key,
   }
 
   err = cn.send(m)
