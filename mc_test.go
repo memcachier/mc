@@ -362,7 +362,7 @@ func TestDelete(t *testing.T) {
 
 
 // Test behaviour of errors and cache removal.
-// TODO: calling incr/decr on a non-numeric returns an error BUT also seems to
+// NOTE: calling incr/decr on a non-numeric returns an error BUT also seems to
 //       remove it from the cache...
 // NOTE: I think above may have been a bug present in memcache 1.4.12 but is
 //       fixed in 1.4.13...
@@ -501,23 +501,63 @@ func TestIncrTimeouts(t *testing.T) {
 
   time.Sleep(1200 * time.Millisecond)
 
-  // no expiration set before, so should incr
+  // no delta_only set before, so should incr
   exp = exp + 39
 	n, _, err = cn.Incr(KEY2, 39, N_START, 1, 0)
 	assert.Equalf(t, nil, err, "%v", err)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
-
-  time.Sleep(1200 * time.Millisecond)
-
-  // expiration set before, should have expired the key now...
-  // TODO: Below fails, not sure who is wrong...
-  // exp = N_START
-	// n, _, err = cn.Incr(KEY2, 2, N_START, 0, 0)
-	// assert.Equalf(t, nil, err, "%v", err)
-  // assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 }
 
-// TODO: Test Touch, GAT
+
+// Test Incr/Decr expiration field.
+// This is a stupid name for the field as it has nothing to do with expiration /
+// ttl. Instead its used to indicate that the incr/decr should fail if the key
+// doesn't already exist in the cache. (i.e., that is since the incr/decr
+// command takes both an initial value and a delta, the expiration field allows
+// us to say that only the delta should be applied and rather than use the
+// initial value when the key doesn't exist, throw an error).
+//
+// Only the value 0xffffffff is used to indicate that only the delta should be
+// applied, all other values for expiration allow either the initial or delta to
+// be used.
+func TestIncrExpiration(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "n"
+    N_START uint64 = 10
+    ONLY_DELTA uint32 = 0xffffffff
+  )
+
+  // fail as we only allow applying the delta...
+  cn.Del(KEY1)
+  _, _, err := cn.Incr(KEY1, 10, N_START, ONLY_DELTA, 0)
+  assert.Equalf(t, ErrNotFound, err, "unexpected error: %v", err)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "key shouldn't exist in cache: %v", err)
+
+  // suceed this time. Any value but ONLY_DELTA should succeed.
+  exp := N_START
+  n, _, err := cn.Incr(KEY1, 10, N_START, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+  cn.Del(KEY1)
+
+  // suceed this time. Any value but ONLY_DELTA should succeed.
+  exp = N_START
+  n, _, err = cn.Incr(KEY1, 10, N_START, 1, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+  cn.Del(KEY1)
+
+  // suceed this time. Any value but ONLY_DELTA should succeed.
+  exp = N_START
+  n, _, err = cn.Incr(KEY1, 10, N_START, ONLY_DELTA - 1, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+  cn.Del(KEY1)
+}
+
 
 // Test Append works...
 func TestAppend(t *testing.T) {
@@ -801,5 +841,101 @@ func TestQuit(t *testing.T) {
 
   err = cn.Quit()
   assert.NotEqual(t, nil, err, "expected an error (closed connection)")
+
+  cn = nil
+}
+
+// TODO: GAT
+
+// Test expiration works...
+// See Note [Expiration] in mc.go for details of how expiration works.
+// NOTE: Can't really test long expirations properly...
+func TestExpiration(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    KEY2 = "goo"
+    VAL1 = "moo"
+    VAL2 = "bar"
+  )
+
+  // no expiration, should last forever...
+  _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  v, _, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+
+
+  // 1 second expiration...
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  time.Sleep(1000 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // 2 second expiration...
+  _, err = cn.Set(KEY1, VAL2, 0, 0, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 800 total...
+  time.Sleep(700 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 900 total...
+  time.Sleep(200 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 2000 total...
+  time.Sleep(1100 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // Test Touch...
+  // NOTE: This works for me with a memcached built from source but not with the
+  // one installed via homebrew...
+  // 2 second expiration...
+  _, err = cn.Set(KEY1, VAL2, 0, 0, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 800 total...
+  time.Sleep(700 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+
+  // make expiration 3 seconds from now (previously would expire 1 second from
+  // now, so a 4 second expiration in total...)
+  _, err = cn.Touch(KEY1, 3)
+  assert.Equalf(t, nil, err, "touch failed: %v", err)
+  // 1200 (2000 total)...
+  time.Sleep(1200 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 1700 (2500 total)...
+  time.Sleep(500 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 1900 (2700 total)...
+  time.Sleep(200 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 3200 (4000) total...
+  time.Sleep(1300 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
 }
 
