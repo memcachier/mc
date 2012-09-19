@@ -845,8 +845,6 @@ func TestQuit(t *testing.T) {
   cn = nil
 }
 
-// TODO: GAT
-
 // Test expiration works...
 // See Note [Expiration] in mc.go for details of how expiration works.
 // NOTE: Can't really test long expirations properly...
@@ -854,6 +852,7 @@ func TestExpiration(t *testing.T) {
   testInit(t)
 
   const (
+    KEY0 = "zoo"
     KEY1 = "foo"
     KEY2 = "goo"
     VAL1 = "moo"
@@ -861,10 +860,10 @@ func TestExpiration(t *testing.T) {
   )
 
   // no expiration, should last forever...
-  _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
+  _, err := cn.Set(KEY0, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
 
-  v, _, _, err := cn.Get(KEY1)
+  v, _, _, err := cn.Get(KEY0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
 
@@ -937,5 +936,109 @@ func TestExpiration(t *testing.T) {
   time.Sleep(1300 * time.Millisecond)
   _, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // key0 still should be alive (no timeout)
+  v, _, _, err = cn.Get(KEY0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+}
+
+
+// Test GAT (get-and-touch) works...
+// See Note [Expiration] in mc.go for details of how expiration works.
+func TestGAT(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    KEY2 = "goo"
+    VAL1 = "moo"
+    VAL2 = "bar"
+    FLAGS uint32 = 921321
+  )
+
+  // no expiration, should last forever...
+  _, err := cn.Set(KEY1, VAL1, 0, FLAGS, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  v, _, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+
+  // no expiration...
+  _, err = cn.Set(KEY2, VAL2, 0, FLAGS, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  // get + set 1 second expiration...
+  v, _, f, err := cn.GAT(KEY2, 1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  time.Sleep(1000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+  _, _, _, err = cn.GAT(KEY2, 1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // Test GAT...
+  // 2 second expiration...
+  _, err = cn.Set(KEY2, VAL2, 0, FLAGS, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 800 total...
+  time.Sleep(700 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+
+  // make expiration 2 seconds from now (previously would expire 1 second from
+  // now, so a 3 second expiration in total...)
+  v, _, f, err = cn.GAT(KEY2, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // 900...
+  time.Sleep(900 * time.Millisecond)
+
+  // reset ttl...
+  v, _, f, err = cn.GAT(KEY2, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // 900...
+  time.Sleep(900 * time.Millisecond)
+
+  // reset ttl...
+  v, _, f, err = cn.GAT(KEY2, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // 900...
+  time.Sleep(900 * time.Millisecond)
+
+  // reset ttl...
+  v, _, f, err = cn.GAT(KEY2, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // 2000...
+  time.Sleep(2000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // should be alive still (no expiration on this key)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
 }
 
