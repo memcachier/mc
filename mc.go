@@ -7,6 +7,7 @@ import (
 
 // TODO: Stat, check byte ordering is correct...
 // TODO: Doesn't actually support multiple nodes...
+// TODO: API, ordering of arguments - consistent
 
 // Protocol:
 // Contains the actual memcache commands a user cares about.
@@ -41,6 +42,18 @@ import (
 // status, CAS and opaque (although a user of a memcache client probably never
 // cares about opaque, only we, the implementer of a memcache client, may care
 // as it can be used for matching request with responses...)
+
+// Expiration.
+// * In seconds - when value of int is less than or equal
+//   to: 60 * 60 * 24 * 30 (e.g., seconds in a month).
+// * As a unix timestamp - otherwise.
+//
+// * Memcached accounts for time passing with a single global counter updated
+//   once a second, so it therefore has an error margin of 1 second (as you
+//   may do a set with expiration 0.5 seconds before it does a global time
+//   update, and that 0.5 seconds will expire your key by 1 whole second).
+// * Error margin is always under time, not over. E.g., a expiration of 4
+//   seconds will actually expire somewhere in the range of (3,4) seconds.
 
 // Retrieve a value from the cache.
 func (cn *Conn) Get(key string) (val string, cas uint64, flags uint32, err error) {
