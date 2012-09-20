@@ -7,7 +7,8 @@ import (
 
 // TODO: Stat, check byte ordering is correct...
 // TODO: Doesn't actually support multiple nodes...
-// TODO: API, ordering of arguments - consistent
+// TODO: Multi-get?
+// TODO: Other than multi-get any use for the command variants?
 
 // Protocol:
 // Contains the actual memcache commands a user cares about.
@@ -56,7 +57,7 @@ import (
 //   seconds will actually expire somewhere in the range of (3,4) seconds.
 
 // Retrieve a value from the cache.
-func (cn *Conn) Get(key string) (val string, cas uint64, flags uint32, err error) {
+func (cn *Conn) Get(key string) (val string, flags uint32, cas uint64, err error) {
   // Variants: [R] Get [Q, K, KQ]
   // Request : MUST key; MUST NOT value, extras
   // Response: MAY key, value, extras ([0..3] flags)
@@ -69,7 +70,7 @@ func (cn *Conn) Get(key string) (val string, cas uint64, flags uint32, err error
 // NOTE: GET doesn't actually care about CAS, but we want this internally for
 // testing purposes, to be able to test that a memcache server obeys the proper
 // semantics of ignoring CAS with GETs.
-func (cn *Conn) getCAS(key string, ocas uint64) (val string, cas uint64, flags uint32, err error) {
+func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err error) {
 	m := &msg{
 		header: header{
 			Op:  OpGet,
@@ -80,12 +81,12 @@ func (cn *Conn) getCAS(key string, ocas uint64) (val string, cas uint64, flags u
 	}
 
 	err = cn.send(m)
-	return m.val, m.CAS, flags, err
+	return m.val, flags, m.CAS, err
 }
 
 // Get and Touch. Both get the value associated with the key and update its
 // expiration time.
-func (cn *Conn) GAT(key string, exp uint32) (val string, cas uint64, flags uint32, err error) {
+func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint64, err error) {
   // Variants: GAT [Q, K, KQ]
   // Request : MUST key, extras; MUST NOT value
   // Response: MAY key, value, extras ([0..3] flags)
@@ -99,7 +100,7 @@ func (cn *Conn) GAT(key string, exp uint32) (val string, cas uint64, flags uint3
   }
 
   err = cn.send(m)
-  return m.val, m.CAS, flags, err
+  return m.val, flags, m.CAS, err
 }
 
 func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
@@ -119,14 +120,14 @@ func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
 }
 
 // Set a key/value pair in the cache.
-func (cn *Conn) Set(key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error){
+func (cn *Conn) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error){
   // Variants: [R] Set [Q]
   return cn.setGeneric(OpSet, key, val, ocas, flags, exp)
 }
 
 // Replace an existing key/value in the cache. Fails if key doesn't already
 // exist in cache.
-func (cn *Conn) Rep(key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error){
+func (cn *Conn) Rep(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error){
   // Variants: Rep [Q]
   return cn.setGeneric(OpReplace, key, val, ocas, flags, exp)
 }
