@@ -5,11 +5,6 @@ import (
   "fmt"
 )
 
-// TODO: Stat, check byte ordering is correct...
-// TODO: Doesn't actually support multiple nodes...
-// TODO: Multi-get?
-// TODO: Other than multi-get any use for the command variants?
-
 // Protocol:
 // Contains the actual memcache commands a user cares about.
 // We document the protocol a little with each command, you can find the
@@ -20,6 +15,8 @@ import (
 // * http://tools.ietf.org/html/rfc4422 (SASL)
 // However, sadly none of these are 100% accurate and you have to look at the
 // memcached source code to find any missing cases or mismatches.
+//
+// * Protocol uses standard network order for bytes (big-endian)
 
 // Command Variants:
 // One quick note on memcache commands, many of them support the following
