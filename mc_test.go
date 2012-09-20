@@ -42,17 +42,17 @@ func TestMCSimple(t *testing.T) {
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
 
   // make sure CAS works
-	_, err = cn.Set(KEY1, VAL2, cas + 1, 0, 0)
+	_, err = cn.Set(KEY1, VAL2, 0, 0, cas + 1)
   assert.Equalf(t, ErrKeyExists, err, "expected CAS mismatch: %v", err)
 
   // check SET actually set the correct value...
-	v, cas2, _, err := cn.Get(KEY1)
+	v, _, cas2, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, VAL1, v, "wrong value: %s", v)
   assert.Equalf(t, cas, cas2, "CAS shouldn't have changed: %d, %d", cas, cas2)
 
   // use correct CAS...
-  cas2, err = cn.Set(KEY1, VAL3, cas, 0, 0)
+  cas2, err = cn.Set(KEY1, VAL3, 0, 0, cas)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.NotEqual(t, cas, cas2)
 }
@@ -72,24 +72,24 @@ func TestGet(t *testing.T) {
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
 
   // retrieve value with 0 CAS...
-  v1, cas1, _, err := cn.getCAS(KEY1, 0)
+  v1, _, cas1, err := cn.getCAS(KEY1, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL1, v1, "wrong value: %s", v1)
 
   // retrieve value with good CAS...
-  v2, cas2, _, err := cn.getCAS(KEY1, cas1)
+  v2, _, cas2, err := cn.getCAS(KEY1, cas1)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, v1, v2, "value changed when it shouldn't: %s, %s", v1, v2)
   assert.Equalf(t, cas1, cas2, "CAS changed when it shouldn't: %d, %d", cas1, cas2)
 
   // retrieve value with bad CAS...
-  v3, cas1, _, err := cn.getCAS(KEY1, cas1 + 1)
+  v3, _, cas1, err := cn.getCAS(KEY1, cas1 + 1)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, v3, v2, "value changed when it shouldn't: %s, %s", v3, v2)
   assert.Equalf(t, cas1, cas2, "CAS changed when it shouldn't: %d, %d", cas1, cas2)
 
   // really make sure CAS is bad (above could be an off by one bug...)
-  v4, cas1, _, err := cn.getCAS(KEY1, cas1 + 992313128)
+  v4, _, cas1, err := cn.getCAS(KEY1, cas1 + 992313128)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, v4, v2, "value changed when it shouldn't: %s, %s", v4, v2)
   assert.Equalf(t, cas1, cas2, "CAS changed when it shouldn't: %d, %d", cas1, cas2)
@@ -113,7 +113,7 @@ func TestSet(t *testing.T) {
 
   cas1, err := cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  v, cas2, _, err := cn.Get(KEY1)
+  v, _, cas2, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
   assert.Equal(t, cas1, cas2, "CAS don't match: %d != %d", cas1, cas2)
@@ -126,14 +126,14 @@ func TestSet(t *testing.T) {
   assert.NotEqual(t, cas1, cas2, "CAS don't match: %d == %d", cas1, cas2)
 
   // get back the val from KEY2...
-  v, cas2, _, err = cn.Get(KEY2)
+  v, _, cas2, err = cn.Get(KEY2)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
 
   // make sure changing value works...
   _, err = cn.Set(KEY1, VAL2, 0, 0, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  v, cas1, _, err = cn.Get(KEY1)
+  v, _, cas1, err = cn.Get(KEY1)
   assert.Equalf(t, VAL2, v, "wrong value: %s", v)
 
   // Delete KEY1 and check it worked, needed for next test...
@@ -145,7 +145,7 @@ func TestSet(t *testing.T) {
   // What happens when I set a new key and specify a CAS?
   // (should fail, bad CAS, can't specify a CAS for a non-existent key, it fails,
   // doesn't just ignore the CAS...)
-  cas, err := cn.Set(KEY1, VAL1, 1, 0, 0)
+  cas, err := cn.Set(KEY1, VAL1, 0, 0, 1)
   assert.Equalf(t, ErrNotFound, err, "wrong error: %v", err)
   assert.Equalf(t, uint64(0), cas, "CAS should be nil: %d", cas)
 
@@ -156,9 +156,9 @@ func TestSet(t *testing.T) {
   // assert.Equalf(t, nil, v, "string should be empty: %s", v)
 
   // Setting an existing value with bad CAS... should fail
-  _, err = cn.Set(KEY2, VAL2, cas2 + 1, 0, 0)
+  _, err = cn.Set(KEY2, VAL2, 0, 0, cas2 + 1)
   assert.Equalf(t, ErrKeyExists, err, "wrong error: %v", err)
-  v, cas1, _, err = cn.Get(KEY2)
+  v, _, cas1, err = cn.Get(KEY2)
   assert.Equalf(t, VAL1, v, "value shouldn't have changed: %s", v)
   assert.Equalf(t, cas1, cas2, "CAS shouldn't have changed: %d, %d", cas1, cas2)
 }
@@ -292,11 +292,11 @@ func TestReplace(t *testing.T) {
   // What happens when I replace a value and give a good CAS?...
   cas, err := cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  cas, err = cn.Rep(KEY1, VAL1, cas, 0, 0)
+  cas, err = cn.Rep(KEY1, VAL1, 0, 0, cas)
   assert.Equalf(t, nil, err, "replace with good CAS failed: %v", err)
 
   // bad CAS
-  _, err = cn.Rep(KEY1, VAL2, cas + 1, 0, 0)
+  _, err = cn.Rep(KEY1, VAL2, 0, 0, cas + 1)
   assert.Equalf(t, ErrKeyExists, err, "replace with bad CAS failed: %v", err)
 }
 
@@ -329,7 +329,7 @@ func TestDelete(t *testing.T) {
     "expected an error for deleting key with wrong CAS: %v", err)
 
   // confirm it isn't gone...
-  v, cas1, _, err := cn.Get(KEY1)
+  v, _, cas1, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err,
     "delete with wrong CAS seems to have succeeded: %v", err)
   assert.Equalf(t, v, VAL1, "corrupted value in cache: %v", v)
@@ -345,7 +345,7 @@ func TestDelete(t *testing.T) {
   err = cn.DelCAS(KEY1, cas1)
   assert.Equalf(t, nil, err,
     "unexpected error for deleting key with correct CAS: %v", err)
-  v, cas1, _, err = cn.Get(KEY1)
+  v, _, cas1, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err,
     "delete with wrong CAS seems to have succeeded: %v", err)
 
@@ -355,7 +355,7 @@ func TestDelete(t *testing.T) {
   err = cn.DelCAS(KEY1, 0)
   assert.Equalf(t, nil, err,
     "unexpected error for deleting key with 0 CAS: %v", err)
-  v, cas1, _, err = cn.Get(KEY1)
+  v, _, cas1, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err,
     "delete with wrong CAS seems to have succeeded: %v", err)
 }
@@ -593,12 +593,12 @@ func TestAppend(t *testing.T) {
   assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
 
   // check CAS works...
-	v, cas, _, err := cn.Get(KEY1)
+	v, _, cas, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = v
   _, err = cn.Append(KEY1, VAL2, cas + 1)
   assert.Equalf(t, ErrKeyExists, err, "expected key exists error: %v", err)
-  v, cas2, _, err := cn.Get(KEY1)
+  v, _, cas2, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, v, "wrong value: %s", v)
   assert.Equalf(t, cas, cas2, "CAS shouldn't have changed: %d != %d", cas, cas2)
@@ -650,12 +650,12 @@ func TestPrepend(t *testing.T) {
   assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
 
   // check CAS works...
-	v, cas, _, err := cn.Get(KEY1)
+	v, _, cas, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = v
   _, err = cn.Prepend(KEY1, VAL2, cas + 1)
   assert.Equalf(t, ErrKeyExists, err, "expected key exists error: %v", err)
-  v, cas2, _, err := cn.Get(KEY1)
+  v, _, cas2, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, v, "wrong value: %s", v)
   assert.Equalf(t, cas, cas2, "CAS shouldn't have changed: %d != %d", cas, cas2)
@@ -727,14 +727,14 @@ func TestNoOp(t *testing.T) {
   // check CAS works...
   err = cn.NoOp()
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	v, cas, _, err := cn.Get(KEY1)
+	v, _, cas, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = v
   _, err = cn.Prepend(KEY1, VAL2, cas + 1)
   assert.Equalf(t, ErrKeyExists, err, "expected key exists error: %v", err)
   err = cn.NoOp()
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-  v, cas2, _, err := cn.Get(KEY1)
+  v, _, cas2, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, v, "wrong value: %s", v)
   assert.Equalf(t, cas, cas2, "CAS shouldn't have changed: %d != %d", cas, cas2)
@@ -869,14 +869,14 @@ func TestExpiration(t *testing.T) {
 
 
   // 1 second expiration...
-  _, err = cn.Set(KEY1, VAL1, 0, 0, 1)
+  _, err = cn.Set(KEY1, VAL1, 0, 1, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   time.Sleep(1000 * time.Millisecond)
   _, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
 
   // 2 second expiration...
-  _, err = cn.Set(KEY1, VAL2, 0, 0, 2)
+  _, err = cn.Set(KEY1, VAL2, 0, 2, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   time.Sleep(100 * time.Millisecond)
   v, _, _, err = cn.Get(KEY1)
@@ -901,7 +901,7 @@ func TestExpiration(t *testing.T) {
   // NOTE: This works for me with a memcached built from source but not with the
   // one installed via homebrew...
   // 2 second expiration...
-  _, err = cn.Set(KEY1, VAL2, 0, 0, 2)
+  _, err = cn.Set(KEY1, VAL2, 0, 2, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   time.Sleep(100 * time.Millisecond)
   v, _, _, err = cn.Get(KEY1)
@@ -958,7 +958,7 @@ func TestGAT(t *testing.T) {
   )
 
   // no expiration, should last forever...
-  _, err := cn.Set(KEY1, VAL1, 0, FLAGS, 0)
+  _, err := cn.Set(KEY1, VAL1, FLAGS, 0, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
 
   v, _, _, err := cn.Get(KEY1)
@@ -966,11 +966,11 @@ func TestGAT(t *testing.T) {
   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
 
   // no expiration...
-  _, err = cn.Set(KEY2, VAL2, 0, FLAGS, 0)
+  _, err = cn.Set(KEY2, VAL2, FLAGS, 0, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
 
   // get + set 1 second expiration...
-  v, _, f, err := cn.GAT(KEY2, 1)
+  v, f, _, err := cn.GAT(KEY2, 1)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
@@ -984,7 +984,7 @@ func TestGAT(t *testing.T) {
 
   // Test GAT...
   // 2 second expiration...
-  _, err = cn.Set(KEY2, VAL2, 0, FLAGS, 2)
+  _, err = cn.Set(KEY2, VAL2, FLAGS, 2, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   time.Sleep(100 * time.Millisecond)
   v, _, _, err = cn.Get(KEY2)
@@ -998,7 +998,7 @@ func TestGAT(t *testing.T) {
 
   // make expiration 2 seconds from now (previously would expire 1 second from
   // now, so a 3 second expiration in total...)
-  v, _, f, err = cn.GAT(KEY2, 2)
+  v, f, _, err = cn.GAT(KEY2, 2)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
@@ -1007,7 +1007,7 @@ func TestGAT(t *testing.T) {
   time.Sleep(900 * time.Millisecond)
 
   // reset ttl...
-  v, _, f, err = cn.GAT(KEY2, 2)
+  v, f, _, err = cn.GAT(KEY2, 2)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
@@ -1016,7 +1016,7 @@ func TestGAT(t *testing.T) {
   time.Sleep(900 * time.Millisecond)
 
   // reset ttl...
-  v, _, f, err = cn.GAT(KEY2, 2)
+  v, f, _, err = cn.GAT(KEY2, 2)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
@@ -1025,7 +1025,7 @@ func TestGAT(t *testing.T) {
   time.Sleep(900 * time.Millisecond)
 
   // reset ttl...
-  v, _, f, err = cn.GAT(KEY2, 2)
+  v, f, _, err = cn.GAT(KEY2, 2)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
