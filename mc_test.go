@@ -559,6 +559,48 @@ func TestIncrExpiration(t *testing.T) {
 }
 
 
+// Test Incr/Decr overflow...
+func TestIncrDecrWrap(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "n"
+    N_START uint64 = 10
+    MAX_1 uint64 = 0xfffffffffffffffe
+    MAX uint64 = 0xffffffffffffffff
+  )
+
+  // setup...
+  exp := N_START
+	n, _, err := cn.Decr(KEY1, N_START + 1, N_START, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+
+  // can't decr past 0...
+  exp = 0
+	n, _, err = cn.Decr(KEY1, N_START + 1, N_START, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+
+  // test limit of incr...
+  exp = MAX_1
+	n, _, err = cn.Incr(KEY1, MAX_1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+
+  exp = MAX
+	n, _, err = cn.Incr(KEY1, 1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+
+  // overflow... wrap around
+  exp = 0
+	n, _, err = cn.Incr(KEY1, 1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+}
+
+
 // Test Append works...
 func TestAppend(t *testing.T) {
   testInit(t)
@@ -802,6 +844,52 @@ func TestFlush(t *testing.T) {
   assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
   err = cn.Del(KEY2)
   assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+
+  // do two sets
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  _, err = cn.Set(KEY2, VAL2, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  // flush in future!
+  err = cn.Flush(3)
+  time.Sleep(900 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  time.Sleep(2000 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+
+  // do two sets
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  _, err = cn.Set(KEY2, VAL2, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  // flush in future! (should overwrite old flush in futures...)
+  err = cn.Flush(3)
+  time.Sleep(900 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  err = cn.Flush(4)
+  time.Sleep(2000 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  time.Sleep(2000 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
 }
 
 
@@ -944,6 +1032,51 @@ func TestExpiration(t *testing.T) {
 }
 
 
+// Test Touch command works...
+func TestTouch(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    VAL1 = "bar"
+  )
+
+  // no expiration, lets see if touch can set an expiration, not just extend...
+  _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  cn.Touch(KEY1, 2)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  time.Sleep(1000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  time.Sleep(1000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache: %v", err)
+
+  // no expiration, let see if we can expire immediately with Touch...
+  // NO, 0 = ignore, so the Touch is a noop really...
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  cn.Touch(KEY1, 0)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  time.Sleep(1000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+}
+
+
 // Test GAT (get-and-touch) works...
 // See Note [Expiration] in mc.go for details of how expiration works.
 func TestGAT(t *testing.T) {
@@ -1040,5 +1173,59 @@ func TestGAT(t *testing.T) {
   v, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+}
+
+
+// Some basic tests that functions work
+func testThread(t *testing.T, id int) {
+
+  const (
+    KEY1 = "foo"
+    VAL1 = "boo"
+    KEY3 = "bar"
+  )
+
+  idx := strconv.Itoa(id)
+  key2 := KEY1 + idx
+
+  // lots of sets of this but should all be setting it to boo...
+  _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+
+  // should be unique to a thread...
+  cas2, err := cn.Set(key2, idx, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+
+  // contention but all setting same value...
+  v, _, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %s", v)
+
+  // key is unique to thread, so even CAS shouldn't change...
+  v, _, cas2x, err := cn.Get(key2)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, idx, v, "wrong value: %s", v)
+  assert.Equalf(t, cas2, cas2x, "CAS shouldn't have changed: %d, %d", cas2, cas2x)
+
+  // lots of sets of this and with diff values...
+  cas1, err := cn.Set(KEY3, idx, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+
+  // try getting straight away...
+  v, _, cas1x, err := cn.Get(KEY3)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  // if cas didn't change our value should have been returned...
+  if cas1 == cas1x {
+    assert.Equalf(t, idx, v, "wrong value (cas didn't change): %s", v)
+  }
+}
+
+// Test threaded interaction...
+func TestThreaded(t *testing.T) {
+  testInit(t)
+
+  for i := 0; i < 30; i++ {
+    go testThread(t, i)
+  }
 }
 

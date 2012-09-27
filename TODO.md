@@ -13,10 +13,6 @@
 
 # Testing
 
-* Roll-over of 32/64bits for counters
-* Multi-threaded access
-* Key validation?
-* Max key size?
 * Cache limit hit... (memcachier)
 * SASL
 * malformed requests
