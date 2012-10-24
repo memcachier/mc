@@ -18,6 +18,8 @@ var (
 	ErrAuthContinue   = errors.New("mc: authentication continue (unsupported)")
 	ErrUnknownCommand = errors.New("mc: unknown command")
 	ErrOutOfMemory    = errors.New("mc: out of memory")
+  // for unknown errors from client...
+  ErrUnknownError   = errors.New("mc: unknown error from server")
 )
 
 var errMap = map[uint16]error{

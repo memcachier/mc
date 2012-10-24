@@ -5,7 +5,6 @@ package mc
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"io"
 	"net"
 	"sync"
@@ -98,7 +97,7 @@ func (cn *Conn) send(m *msg) (err error) {
 func checkError(m *msg) error {
 	err, ok := errMap[m.ResvOrStatus]
 	if !ok {
-		return errors.New("mc: unknown error from server")
+		return ErrUnknownError
 	}
 	return err
 }
