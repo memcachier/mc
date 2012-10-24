@@ -12,7 +12,7 @@ import (
 
 const (
   mcAddr    = "localhost:11211"
-  doAuth    = false
+  doAuth    = true
   authOnMac = true
   user      = "user-1"
   pass      = "pass"
@@ -602,7 +602,6 @@ func TestIncrDecrWrap(t *testing.T) {
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 }
 
-
 // Test Append works...
 func TestAppend(t *testing.T) {
   testInit(t)
@@ -631,8 +630,10 @@ func TestAppend(t *testing.T) {
   // append to non-existent value
   exp = VAL1
   _, err = cn.Append(KEY2, VAL1, 0)
-  assert.Equalf(t, ErrValueNotStored, err,
-    "expected value not stored error: %v", err)
+  // XXX: Not sure why but using assert doesn't work here...
+  if err != ErrValueNotStored {
+    t.Errorf("expected 'value not stored error', got: %v", err)
+  }
 	v, _, _, err = cn.Get(KEY2)
   assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
 
@@ -688,8 +689,9 @@ func TestPrepend(t *testing.T) {
   // append to non-existent value
   exp = VAL1
   _, err = cn.Prepend(KEY2, VAL1, 0)
-  assert.Equalf(t, ErrValueNotStored, err,
-    "expected value not stored error: %v", err)
+  if err != ErrValueNotStored {
+    t.Errorf("expected 'value not stored error', got: %v", err)
+  }
 	v, _, _, err = cn.Get(KEY2)
   assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
 
@@ -763,8 +765,9 @@ func TestNoOp(t *testing.T) {
   // append to non-existent value
   exp = VAL1
   _, err = cn.Prepend(KEY2, VAL1, 0)
-  assert.Equalf(t, ErrValueNotStored, err,
-    "expected value not stored error: %v", err)
+  if err != ErrValueNotStored {
+    t.Errorf("expected 'value not stored error', got: %v", err)
+  }
 	v, _, _, err = cn.Get(KEY2)
   assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
 
