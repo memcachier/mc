@@ -6,3 +6,4 @@ _gotest_.6
 _testmain.go
 .DS_Store
 *.prof
+mc.test
