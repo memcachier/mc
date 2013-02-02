@@ -79,12 +79,14 @@ func (cn *Conn) send(m *msg) (err error) {
 
 	buf := bytes.NewBuffer(bd)
 
-	for _, e := range m.oextras {
-		err = binary.Read(buf, binary.BigEndian, e)
-		if err != nil {
-			return
-		}
-	}
+  if m.ResvOrStatus == 0 && m.ExtraLen > 0 {
+    for _, e := range m.oextras {
+      err = binary.Read(buf, binary.BigEndian, e)
+      if err != nil {
+        return
+      }
+    }
+  }
 
 	m.key = string(buf.Next(int(m.KeyLen)))
 
