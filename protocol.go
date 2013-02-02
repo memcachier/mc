@@ -114,7 +114,6 @@ type msg struct {
 	// response extras in this field and the generic send/recieve code can handle.
 	oextras []interface{}  // [24..(m-1)] Command specifc extras (Out)
 
-
 	key     string         // [m..(n-1)] Key (as needed, length in header)
 	val     string         // [n..x] Value (as needed, length in header)
 }
