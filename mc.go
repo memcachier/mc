@@ -77,7 +77,7 @@ func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas u
 		key: key,
 	}
 
-	err = cn.send(m)
+	err = cn.sendRecv(m)
 	return m.val, flags, m.CAS, err
 }
 
@@ -96,7 +96,7 @@ func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint6
     key: key,
   }
 
-  err = cn.send(m)
+  err = cn.sendRecv(m)
   return m.val, flags, m.CAS, err
 }
 
@@ -112,7 +112,7 @@ func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
     key: key,
   }
 
-  err = cn.send(m)
+  err = cn.sendRecv(m)
   return m.CAS, err
 }
 
@@ -152,7 +152,7 @@ func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp u
 		val:     val,
 	}
 
-	err = cn.send(m)
+	err = cn.sendRecv(m)
 	return m.CAS, err
 }
 
@@ -189,7 +189,7 @@ func (cn *Conn) incrdecr(op opCode, key string, delta, init uint64, exp uint32, 
 		key:     key,
 	}
 
-	err = cn.send(m)
+	err = cn.sendRecv(m)
 	if err != nil {
 		return
 	}
@@ -223,7 +223,7 @@ func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err error) {
     val: val,
   }
 
-  err = cn.send(m)
+  err = cn.sendRecv(m)
   return m.CAS, err
 }
 
@@ -242,7 +242,7 @@ func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
     val: val,
   }
 
-  err = cn.send(m)
+  err = cn.sendRecv(m)
   return m.CAS, err
 }
 
@@ -265,7 +265,7 @@ func (cn *Conn) DelCAS(key string, cas uint64) error {
 		key: key,
 	}
 
-	return cn.send(m)
+	return cn.sendRecv(m)
 }
 
 // Flush the cache, that is, invalidate all keys. Note, this doesn't typically
@@ -287,7 +287,7 @@ func (cn *Conn) Flush(when uint32) (err error) {
 		iextras: []interface{}{when},
   }
 
-  return cn.send(m)
+  return cn.sendRecv(m)
 }
 
 // Send a No-Op message to the memcache server. This can be used as a heartbeat
@@ -302,7 +302,7 @@ func (cn *Conn) NoOp() (err error) {
     },
   }
 
-  return cn.send(m)
+  return cn.sendRecv(m)
 }
 
 // Get the version of the memcached server connected to.
@@ -318,7 +318,7 @@ func (cn *Conn) Version() (ver string, err error) {
     },
   }
 
-  err = cn.send(m)
+  err = cn.sendRecv(m)
   return m.val, err
 }
 
@@ -333,8 +333,39 @@ func (cn *Conn) Quit() (err error) {
     },
   }
 
-  err = cn.send(m)
+  err = cn.sendRecv(m)
   cn.Close();
+  return
+}
+
+// Stats returns some statistics about the memcached server.
+func (cn *Conn) Stats() (stats map[string]string, err error) {
+  // Variants: Stats
+  // Request : MAY HAVE key, MUST NOT value, extra
+  // Response: Serries of responses that MUST HAVE key, value; followed by one
+  //           response that MUST NOT have key, value. ALL MUST NOT extras.
+  m := &msg{
+    header: header{
+      Op: OpStat,
+    },
+  }
+
+  err = cn.send(m)
+  if err != nil {
+    return
+  }
+
+  // collect all statistics
+  stats = make(map[string]string)
+  for {
+    err = cn.recv(m)
+    // error or termination message
+    if err != nil || m.KeyLen == 0 {
+      return
+    }
+    stats[m.key] = m.val
+  }
+
   return
 }
 

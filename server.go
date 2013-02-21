@@ -31,6 +31,20 @@ func (cn *Conn) Close() error {
 	return cn.rwc.Close()
 }
 
+func (cn *Conn) sendRecv(m *msg) (err error) {
+  err = cn.send(m)
+  if err != nil {
+    return
+  }
+
+  err = cn.recv(m)
+  if err != nil {
+    return
+  }
+
+  return nil
+}
+
 func (cn *Conn) send(m *msg) (err error) {
 	m.Magic = 0x80
 	m.ExtraLen = sizeOfExtras(m.iextras)
@@ -63,18 +77,22 @@ func (cn *Conn) send(m *msg) (err error) {
 		return
 	}
 
-	cn.buf.WriteTo(cn.rwc)
+	_, err = cn.buf.WriteTo(cn.rwc)
+  return
+}
 
-	// Response
+// recv receives a memcached response. It takes a msg into which to store the
+// response.
+func (cn *Conn) recv(m *msg) (err error) {
 	err = binary.Read(cn.rwc, binary.BigEndian, &m.header)
 	if err != nil {
-		return err
+		return
 	}
 
 	bd := make([]byte, m.BodyLen)
 	_, err = io.ReadFull(cn.rwc, bd)
 	if err != nil {
-		return err
+		return
 	}
 
 	buf := bytes.NewBuffer(bd)
@@ -89,7 +107,6 @@ func (cn *Conn) send(m *msg) (err error) {
   }
 
 	m.key = string(buf.Next(int(m.KeyLen)))
-
 	vlen := int(m.BodyLen) - int(m.ExtraLen) - int(m.KeyLen)
 	m.val = string(buf.Next(int(vlen)))
 

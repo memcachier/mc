@@ -28,7 +28,7 @@ func (cn *Conn) authList() (s string, err error) {
 		},
 	}
 
-	err = cn.send(m)
+	err = cn.sendRecv(m)
 	return m.val, err
 }
 
@@ -42,6 +42,6 @@ func (cn *Conn) authPlain(user, pass string) error {
 		val: fmt.Sprintf("\x00%s\x00%s", user, pass),
 	}
 
-	return cn.send(m)
+	return cn.sendRecv(m)
 }
 
