@@ -12,7 +12,7 @@ import (
 
 const (
   mcAddr    = "localhost:11211"
-  doAuth    = true
+  doAuth    = false
   authOnMac = true
   user      = "user-1"
   pass      = "pass"
@@ -152,8 +152,8 @@ func TestSet(t *testing.T) {
   // make sure it really didn't set it...
   v, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "wrong error: %v", err)
-  // no value is the error string from the server...
-  // assert.Equalf(t, nil, v, "string should be empty: %s", v)
+  // TODO: On errors a human readable error description should be returned. So
+  // could test that.
 
   // Setting an existing value with bad CAS... should fail
   _, err = cn.Set(KEY2, VAL2, 0, 0, cas2 + 1)
@@ -172,7 +172,7 @@ func TestSetBadRemovePrevious(t *testing.T) {
 
   const (
     // Larger than this memcached doesn't like for key 'foo' (with defaults)
-    MAX_VAL_SIZE = 1024 * 1024 - 74
+    MAX_VAL_SIZE = 1024 * 1024 - 80
     KEY = "foo"
     VAL = "bar"
   )
@@ -552,12 +552,11 @@ func TestIncrExpiration(t *testing.T) {
   cn.Del(KEY1)
 
   // suceed this time. Any value but ONLY_DELTA should succeed.
-  // XXX: expected fail due to large expiration hack
-  // exp = N_START
-  // n, _, err = cn.Incr(KEY1, 10, N_START, ONLY_DELTA - 1, 0)
-  // assert.Equalf(t, nil, err, "unexpected error: %v", err)
-  // assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
-  // cn.Del(KEY1)
+  exp = N_START
+  n, _, err = cn.Incr(KEY1, 10, N_START, ONLY_DELTA - 1, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
+  cn.Del(KEY1)
 }
 
 
@@ -804,15 +803,17 @@ func TestNoOp(t *testing.T) {
 }
 
 
-// Test Flush behaviour with CAS...
+// Test Flush behaviour
 func TestFlush(t *testing.T) {
   testInit(t)
 
   const (
     KEY1 = "foo"
     KEY2 = "goo"
+    KEY3 = "hoo"
     VAL1 = "bar"
     VAL2 = "zar"
+    VAL3 = "gar"
   )
 
   err := cn.Flush(0)
@@ -849,54 +850,104 @@ func TestFlush(t *testing.T) {
   err = cn.Del(KEY2)
   assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
 
-  // XXX: not working for now as V2 of proxy/backend protocol doesn't support
-  // flushing in the future.
-
   // do two sets
-  // _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
-  // assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  // _, err = cn.Set(KEY2, VAL2, 0, 0, 0)
-  // assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  _, err = cn.Set(KEY2, VAL2, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
 
   // flush in future!
-  // err = cn.Flush(3)
-  // time.Sleep(900 * time.Millisecond)
-  // _, _, _, err = cn.Get(KEY1)
-  // assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
-  // time.Sleep(100 * time.Millisecond)
-  // _, _, _, err = cn.Get(KEY2)
-  // assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
-  // time.Sleep(2000 * time.Millisecond)
-  // v, _, _, err = cn.Get(KEY1)
-  // assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
-  // v, _, _, err = cn.Get(KEY2)
-  // assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  err = cn.Flush(3)
+
+  // set a key now, after sending flush in future command. Should this key be
+  // included in flush when it applies?
+  _, err = cn.Set(KEY3, VAL3, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  // keys should still survive as the flush hasn't applied yet.
+  time.Sleep(900 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+
+  // now keys should all be flushed
+  time.Sleep(2200 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  _, _, _, err = cn.Get(KEY3)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
 
   // do two sets
-  // _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
-  // assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  // _, err = cn.Set(KEY2, VAL2, 0, 0, 0)
-  // assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  _, err = cn.Set(KEY2, VAL2, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
 
   // flush in future! (should overwrite old flush in futures...)
-  // err = cn.Flush(3)
-  // time.Sleep(900 * time.Millisecond)
-  // _, _, _, err = cn.Get(KEY1)
-  // assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
-  // time.Sleep(100 * time.Millisecond)
-  // _, _, _, err = cn.Get(KEY2)
-  // assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
-  // err = cn.Flush(4)
-  // time.Sleep(2000 * time.Millisecond)
-  // _, _, _, err = cn.Get(KEY1)
-  // assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
-  // _, _, _, err = cn.Get(KEY2)
-  // assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
-  // time.Sleep(2000 * time.Millisecond)
-  // v, _, _, err = cn.Get(KEY1)
-  // assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
-  // v, _, _, err = cn.Get(KEY2)
-  // assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  err = cn.Flush(3)
+  time.Sleep(900 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  err = cn.Flush(4)
+  time.Sleep(2000 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should have found key as flushed in future!: %v", err)
+  time.Sleep(2000 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key as flushed: %v", err)
+}
+
+
+// Test flush, flush future.
+// XXX: Memcached is broken for this.
+func TestFlushFuture(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    KEY2 = "goo"
+    VAL1 = "bar"
+    VAL2 = "zar"
+  )
+
+  // clear cache
+  err := cn.Flush(0)
+  assert.Equalf(t, nil, err, "flush produced error: %v", err)
+
+  // set KEY1, KEY2
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  _, err = cn.Set(KEY2, VAL2, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  // wait two seconds
+  time.Sleep(2000 * time.Millisecond)
+
+  // flush cache (KEY1, KEY2)
+  err = cn.Flush(0)
+  assert.Equalf(t, nil, err, "flush produced error: %v", err)
+
+  // flush again, but in future
+  err = cn.Flush(10)
+
+  // get KEY1, KEY2
+  v, _, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
 }
 
 
@@ -940,255 +991,257 @@ func TestQuit(t *testing.T) {
   cn = nil
 }
 
-// XXX: Still fails!
 // Test expiration works...
 // See Note [Expiration] in mc.go for details of how expiration works.
 // NOTE: Can't really test long expirations properly...
-// func TestExpiration(t *testing.T) {
-//   testInit(t)
-// 
-//   const (
-//     KEY0 = "zoo"
-//     KEY1 = "foo"
-//     KEY2 = "goo"
-//     VAL1 = "moo"
-//     VAL2 = "bar"
-//   )
-// 
-//   // no expiration, should last forever...
-//   _, err := cn.Set(KEY0, VAL1, 0, 0, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// 
-//   v, _, _, err := cn.Get(KEY0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
-// 
-// 
-//   // 1 second expiration...
-//   _, err = cn.Set(KEY1, VAL1, 0, 1, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   time.Sleep(1000 * time.Millisecond)
-//   _, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
-// 
-//   // 2 second expiration...
-//   _, err = cn.Set(KEY1, VAL2, 0, 2, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   time.Sleep(100 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   // 800 total...
-//   time.Sleep(700 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   // 900 total...
-//   time.Sleep(200 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   // 2000 total...
-//   time.Sleep(1100 * time.Millisecond)
-//   _, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
-// 
-//   // Test Touch...
-//   // NOTE: This works for me with a memcached built from source but not with the
-//   // one installed via homebrew...
-//   // 2 second expiration...
-//   _, err = cn.Set(KEY1, VAL2, 0, 2, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   time.Sleep(100 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   // 800 total...
-//   time.Sleep(700 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-// 
-//   // make expiration 3 seconds from now (previously would expire 1 second from
-//   // now, so a 4 second expiration in total...)
-//   _, err = cn.Touch(KEY1, 3)
-//   assert.Equalf(t, nil, err, "touch failed: %v", err)
-//   // 1200 (2000 total)...
-//   time.Sleep(1200 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   // 1700 (2500 total)...
-//   time.Sleep(500 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   // 1900 (2700 total)...
-//   time.Sleep(200 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   // 3200 (4000) total...
-//   time.Sleep(1300 * time.Millisecond)
-//   _, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
-// 
-//   // key0 still should be alive (no timeout)
-//   v, _, _, err = cn.Get(KEY0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
-// }
+func TestExpiration(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY0 = "zoo"
+    KEY1 = "foo"
+    KEY2 = "goo"
+    VAL1 = "moo"
+    VAL2 = "bar"
+  )
+
+  // no expiration, should last forever...
+  _, err := cn.Set(KEY0, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  v, _, _, err := cn.Get(KEY0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
 
 
-// XXX: not working for now as V2 protocol doesn't support touch
+  // 1 second expiration...
+  _, err = cn.Set(KEY1, VAL1, 0, 1, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  time.Sleep(1000 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // 2 second expiration...
+  _, err = cn.Set(KEY1, VAL2, 0, 2, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 800 total...
+  time.Sleep(700 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 900 total...
+  time.Sleep(200 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 2000 total...
+  time.Sleep(1100 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // Test Touch...
+  // NOTE: This works for me with a memcached built from source but not with the
+  // one installed via homebrew...
+  // 2 second expiration...
+  _, err = cn.Set(KEY1, VAL2, 0, 2, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 800 total...
+  time.Sleep(700 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+
+  // make expiration 3 seconds from now (previously would expire 1 second from
+  // now, so a 4 second expiration in total...)
+  _, err = cn.Touch(KEY1, 3)
+  assert.Equalf(t, nil, err, "touch failed: %v", err)
+  // 1200 (2000 total)...
+  time.Sleep(1200 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 1700 (2500 total)...
+  time.Sleep(500 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 1900 (2700 total)...
+  time.Sleep(200 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 3200 (4000) total...
+  time.Sleep(1300 * time.Millisecond)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // key0 still should be alive (no timeout)
+  v, _, _, err = cn.Get(KEY0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+}
+
+
 // Test Touch command works...
-// func TestTouch(t *testing.T) {
-//   testInit(t)
-// 
-//   const (
-//     KEY1 = "foo"
-//     VAL1 = "bar"
-//   )
-// 
-//   // no expiration, lets see if touch can set an expiration, not just extend...
-//   _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// 
-//   cn.Touch(KEY1, 2)
-// 
-//   _, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// 
-//   time.Sleep(1000 * time.Millisecond)
-// 
-//   _, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// 
-//   time.Sleep(1000 * time.Millisecond)
-// 
-//   _, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache: %v", err)
-// 
-//   // no expiration, let see if we can expire immediately with Touch...
-//   // NO, 0 = ignore, so the Touch is a noop really...
-//   _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// 
-//   cn.Touch(KEY1, 0)
-// 
-//   _, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// 
-//   time.Sleep(1000 * time.Millisecond)
-// 
-//   _, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// }
+func TestTouch(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    VAL1 = "bar"
+  )
+
+  // no expiration, lets see if touch can set an expiration, not just extend...
+  _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  cn.Touch(KEY1, 2)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  time.Sleep(1000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  time.Sleep(1000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache: %v", err)
+
+  // no expiration, let see if we can expire immediately with Touch...
+  // NO, 0 = ignore, so the Touch is a noop really...
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  cn.Touch(KEY1, 0)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  time.Sleep(1000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+}
 
 
-// XXX: not working for now...
 // Test GAT (get-and-touch) works...
 // See Note [Expiration] in mc.go for details of how expiration works.
-// func TestGAT(t *testing.T) {
-//   testInit(t)
-// 
-//   const (
-//     KEY1 = "foo"
-//     KEY2 = "goo"
-//     VAL1 = "moo"
-//     VAL2 = "bar"
-//     FLAGS uint32 = 921321
-//   )
-// 
-//   // no expiration, should last forever...
-//   _, err := cn.Set(KEY1, VAL1, FLAGS, 0, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// 
-//   v, _, _, err := cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
-// 
-//   // no expiration...
-//   _, err = cn.Set(KEY2, VAL2, FLAGS, 0, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-// 
-//   // get + set 1 second expiration...
-//   v, f, _, err := cn.GAT(KEY2, 1)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
-// 
-//   time.Sleep(1000 * time.Millisecond)
-// 
-//   _, _, _, err = cn.Get(KEY2)
-//   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
-//   _, _, _, err = cn.GAT(KEY2, 1)
-//   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
-// 
-//   // Test GAT...
-//   // 2 second expiration...
-//   _, err = cn.Set(KEY2, VAL2, FLAGS, 2, 0)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   time.Sleep(100 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY2)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   // 800 total...
-//   time.Sleep(700 * time.Millisecond)
-//   v, _, _, err = cn.Get(KEY2)
-//   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-// 
-//   // make expiration 2 seconds from now (previously would expire 1 second from
-//   // now, so a 3 second expiration in total...)
-//   v, f, _, err = cn.GAT(KEY2, 2)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
-// 
-//   // 900...
-//   time.Sleep(900 * time.Millisecond)
-// 
-//   // reset ttl...
-//   v, f, _, err = cn.GAT(KEY2, 2)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
-// 
-//   // 900...
-//   time.Sleep(900 * time.Millisecond)
-// 
-//   // reset ttl...
-//   v, f, _, err = cn.GAT(KEY2, 2)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
-// 
-//   // 900...
-//   time.Sleep(900 * time.Millisecond)
-// 
-//   // reset ttl...
-//   v, f, _, err = cn.GAT(KEY2, 2)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-//   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
-// 
-//   // 2000...
-//   time.Sleep(2000 * time.Millisecond)
-// 
-//   _, _, _, err = cn.Get(KEY2)
-//   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
-// 
-//   // should be alive still (no expiration on this key)
-//   v, _, _, err = cn.Get(KEY1)
-//   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-//   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
-// }
+func TestGAT(t *testing.T) {
+  testInit(t)
+
+  const (
+    KEY1 = "foo"
+    KEY2 = "goo"
+    VAL1 = "moo"
+    VAL2 = "bar"
+    FLAGS uint32 = 921321
+  )
+
+  // no expiration, should last forever...
+  _, err := cn.Set(KEY1, VAL1, FLAGS, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  v, f, _, err := cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // no expiration...
+  _, err = cn.Set(KEY2, VAL2, FLAGS, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
+  // get + set 1 second expiration...
+  v, f, _, err = cn.GAT(KEY2, 1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  v, f, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  time.Sleep(1000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+  _, _, _, err = cn.GAT(KEY2, 1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // Test GAT...
+  // 2 second expiration...
+  _, err = cn.Set(KEY2, VAL2, FLAGS, 2, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  time.Sleep(100 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  // 800 total...
+  time.Sleep(700 * time.Millisecond)
+  v, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, nil, err, "should be in cache still: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+
+  // make expiration 2 seconds from now (previously would expire 1 second from
+  // now, so a 3 second expiration in total...)
+  v, f, _, err = cn.GAT(KEY2, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // 900...
+  time.Sleep(900 * time.Millisecond)
+
+  // reset ttl...
+  v, f, _, err = cn.GAT(KEY2, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // 900...
+  time.Sleep(900 * time.Millisecond)
+
+  // reset ttl...
+  v, f, _, err = cn.GAT(KEY2, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // 900...
+  time.Sleep(900 * time.Millisecond)
+
+  // reset ttl...
+  v, f, _, err = cn.GAT(KEY2, 2)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
+
+  // 2000...
+  time.Sleep(2000 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  // should be alive still (no expiration on this key)
+  v, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+}
 
 
 // Some basic tests that functions work
 func testThread(t *testing.T, id int) {
-
   const (
     KEY1 = "foo"
     VAL1 = "boo"
@@ -1307,6 +1360,78 @@ func TestGetExotic(t *testing.T) {
   testAdvGet(t, OpGetKQ, KEY, KEY, 0xffffffff)
   testAdvGet(t, OpGetKQ, KEY, KEY, 0xfffffff0)
   testAdvGet(t, OpGetKQ, KEY, KEY, 0xf0f0f0f0)
+}
+
+func testAdvGat(t *testing.T, op opCode, key string, expKey string, opq uint32) *msg {
+  var exp uint32
+  var flags uint32
+
+  m := &msg{
+    header: header{
+			Op:  op,
+      CAS: uint64(0),
+      Opaque: uint32(opq),
+    },
+		iextras: []interface{}{exp},
+    oextras: []interface{}{&flags},
+    key: key,
+  }
+
+  err := cn.sendRecv(m)
+
+  assert.Equalf(t, nil, err, "Unexpected error! %s", err)
+  // XXX: Issues here with new server send/recv split! Seems a golang bug to do
+  // with lifting variables to heap perhaps and sharing?
+  // assert.Equalf(t, op, m.header.Op, "Response has wrong op code! %d != %d", op, m.header.Op)
+  // assert.Equalf(t, opq, m.header.Opaque, "Response has wrong opaque! %d != %d", opq, m.header.Opaque)
+  // assert.Equalf(t, expKey, m.key, "Get returned key! %s", m.key)
+
+  return m
+}
+
+// Test that the various gat types work
+func TestGatExotic(t *testing.T) {
+  const (
+    KEY = "key"
+    VAL = "bar"
+  )
+
+  testInit(t)
+
+  _, err := cn.Set(KEY, VAL, 0, 0, 0)
+  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+
+  // TODO: Testing only when a key exists, need to also test functionality that
+  // on key miss, getq doesn't return a response. And test that the 'touch'
+  // aspect is functioning.
+
+  // get
+  testAdvGat(t, OpGAT, KEY, "", 123)
+  testAdvGat(t, OpGAT, KEY, "", 0)
+  testAdvGat(t, OpGAT, KEY, "", 0xffffffff)
+  testAdvGat(t, OpGAT, KEY, "", 0xfffffff0)
+  testAdvGat(t, OpGAT, KEY, "", 0xf0f0f0f0)
+
+  // getq
+  testAdvGat(t, OpGATQ, KEY, "", 123)
+  testAdvGat(t, OpGATQ, KEY, "", 0)
+  testAdvGat(t, OpGATQ, KEY, "", 0xffffffff)
+  testAdvGat(t, OpGATQ, KEY, "", 0xfffffff0)
+  testAdvGat(t, OpGATQ, KEY, "", 0xf0f0f0f0)
+
+  // getk
+  testAdvGat(t, OpGATK, KEY, KEY, 123)
+  testAdvGat(t, OpGATK, KEY, KEY, 0)
+  testAdvGat(t, OpGATK, KEY, KEY, 0xffffffff)
+  testAdvGat(t, OpGATK, KEY, KEY, 0xfffffff0)
+  testAdvGat(t, OpGATK, KEY, KEY, 0xf0f0f0f0)
+
+  // getkq
+  testAdvGat(t, OpGATKQ, KEY, KEY, 123)
+  testAdvGat(t, OpGATKQ, KEY, KEY, 0)
+  testAdvGat(t, OpGATKQ, KEY, KEY, 0xffffffff)
+  testAdvGat(t, OpGATKQ, KEY, KEY, 0xfffffff0)
+  testAdvGat(t, OpGATKQ, KEY, KEY, 0xf0f0f0f0)
 }
 
 func TestGetStats(t *testing.T) {
