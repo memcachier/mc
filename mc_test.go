@@ -939,15 +939,16 @@ func TestFlushFuture(t *testing.T) {
   assert.Equalf(t, nil, err, "flush produced error: %v", err)
 
   // flush again, but in future
-  err = cn.Flush(10)
+  err = cn.Flush(2)
 
   // get KEY1, KEY2
-  v, _, _, err := cn.Get(KEY1)
-  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
-  v, _, _, err = cn.Get(KEY2)
-  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  assert.Equalf(t, VAL2, v, "wrong value: %v", v)
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key! err: %v", err)
+  _, _, _, err = cn.Get(KEY2)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key! err: %v", err)
+
+  // wait for flush to expire
+  time.Sleep(2000 * time.Millisecond)
 }
 
 
