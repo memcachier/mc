@@ -1,9 +1,19 @@
-# figure out what GOROOT is supposed to be
-GOROOT ?= $(shell printf 't:;@echo $$(GOROOT)\n' | go make -f -)
-include $(GOROOT)/src/Make.inc
+ifndef GO
+GO=go
+endif
 
-TARG=github.com/bmizerany/mc.go
-GOFILES=\
-	mc.go\
+.PHONY: all
 
-include $(GOROOT)/src/Make.pkg
+all: mc
+
+mc: src/mc/*.go
+	@mkdir -p bin
+	@cd bin && GOPATH=$(CURDIR) $(GO) build mc
+
+test: mc
+	@GOPATH=$(CURDIR) $(GO) test -v mc
+
+clean:
+	go clean
+	rm -Rf bin
+
