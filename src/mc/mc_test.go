@@ -1220,7 +1220,7 @@ func TestGAT(t *testing.T) {
   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
 
   // 900...
-  time.Sleep(900 * time.Millisecond)
+  time.Sleep(800 * time.Millisecond)
 
   // reset ttl...
   v, f, _, err = cn.GAT(KEY2, 2)
@@ -1451,10 +1451,13 @@ func TestGetStats(t *testing.T) {
   cn.Flush(0)
   stats, err := cn.Stats()
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-  startMisses, err := strconv.ParseUint(stats["get_misses"], 10, 64)
-  assert.Equalf(t, nil, err, "unexpected error: %v", err)
-  startHits, err := strconv.ParseUint(stats["get_hits"], 10, 64)
-  assert.Equalf(t, nil, err, "unexpected error: %v", err)
+  assert.T(t, len(stats) > 0, "stats is empty! ", stats)
+  _, err = strconv.ParseUint(stats["get_misses"], 10, 64)
+  assert.Equalf(t, nil, err, "unexpected error: %v, stats struct: %v",
+    err, stats)
+  _, err = strconv.ParseUint(stats["get_hits"], 10, 64)
+  assert.Equalf(t, nil, err, "unexpected error: %v, stats struct: %v",
+    err, stats)
 
   // setup key
   _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
