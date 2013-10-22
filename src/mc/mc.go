@@ -350,6 +350,9 @@ func (cn *Conn) Stats() (stats map[string]string, err error) {
     },
   }
 
+  cn.l.Lock()
+  defer cn.l.Unlock()
+
   err = cn.send(m)
   if err != nil {
     return
