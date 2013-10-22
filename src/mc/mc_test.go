@@ -2,8 +2,8 @@ package mc
 
 import (
   "fmt"
-	"github.com/bmizerany/assert"
-	"testing"
+  "github.com/bmizerany/assert"
+  "testing"
   "time"
   "math/rand"
   "regexp"
@@ -35,18 +35,18 @@ func TestMCSimple(t *testing.T) {
   _, _, _, err := cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "expected missing key: %v", err)
 
-	// unconditional SET
-	_, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  // unconditional SET
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   cas, err := cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
 
   // make sure CAS works
-	_, err = cn.Set(KEY1, VAL2, 0, 0, cas + 1)
+  _, err = cn.Set(KEY1, VAL2, 0, 0, cas + 1)
   assert.Equalf(t, ErrKeyExists, err, "expected CAS mismatch: %v", err)
 
   // check SET actually set the correct value...
-	v, _, cas2, err := cn.Get(KEY1)
+  v, _, cas2, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, VAL1, v, "wrong value: %s", v)
   assert.Equalf(t, cas, cas2, "CAS shouldn't have changed: %d, %d", cas, cas2)
@@ -407,44 +407,44 @@ func TestIncrDecr(t *testing.T) {
 
   // check DEL of non-existing key fails...
   err := cn.Del(KEY1)
-	if err != ErrNotFound {
+  if err != ErrNotFound {
     assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	}
-	err = cn.Del(KEY1)
+  }
+  err = cn.Del(KEY1)
   assert.Equalf(t, ErrNotFound, err, "expected missing key: %v", err)
 
   // test INCR/DECR...
 
   exp := N_START // track what we expect
-	n, cas, err := cn.Incr(KEY1, 1, N_START, 0, 0)
+  n, cas, err := cn.Incr(KEY1, 1, N_START, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	assert.NotEqual(t, 0, cas)
+  assert.NotEqual(t, 0, cas)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   exp = exp + 1
-	n, cas, err = cn.Incr(KEY1, 1, 99, 0, 0)
+  n, cas, err = cn.Incr(KEY1, 1, 99, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	assert.NotEqual(t, 0, cas)
+  assert.NotEqual(t, 0, cas)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   exp = exp - 1
-	n, cas, err = cn.Decr(KEY1, 1, 97, 0, 0)
+  n, cas, err = cn.Decr(KEY1, 1, 97, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	assert.NotEqual(t, 0, cas)
+  assert.NotEqual(t, 0, cas)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   // test big addition
   exp = exp + 1123139
-	n, cas, err = cn.Incr(KEY1, 1123139, 97, 0, 0)
+  n, cas, err = cn.Incr(KEY1, 1123139, 97, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	assert.NotEqual(t, 0, cas)
+  assert.NotEqual(t, 0, cas)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   // test zero addition
   exp = exp + 0
-	n, cas, err = cn.Incr(KEY1, 0, 97, 0, 0)
+  n, cas, err = cn.Incr(KEY1, 0, 97, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	assert.NotEqual(t, 0, cas)
+  assert.NotEqual(t, 0, cas)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   // test CAS works... (should match)
@@ -476,9 +476,9 @@ func TestIncrDecr(t *testing.T) {
   exp, err = strconv.ParseUint(N_VAL, 10, 64)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = exp + 1123139
-	n, cas, err = cn.Incr(KEY1, 1123139, 97, 0, 0)
+  n, cas, err = cn.Incr(KEY1, 1123139, 97, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	assert.NotEqual(t, 0, cas)
+  assert.NotEqual(t, 0, cas)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 }
 
@@ -504,8 +504,8 @@ func TestIncrTimeouts(t *testing.T) {
 
   // no delta_only set before, so should incr
   exp = exp + 39
-	n, _, err = cn.Incr(KEY2, 39, N_START, 1, 0)
-	assert.Equalf(t, nil, err, "%v", err)
+  n, _, err = cn.Incr(KEY2, 39, N_START, 1, 0)
+  assert.Equalf(t, nil, err, "%v", err)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 }
 
@@ -573,30 +573,30 @@ func TestIncrDecrWrap(t *testing.T) {
 
   // setup...
   exp := N_START
-	n, _, err := cn.Decr(KEY1, N_START + 1, N_START, 0, 0)
+  n, _, err := cn.Decr(KEY1, N_START + 1, N_START, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   // can't decr past 0...
   exp = 0
-	n, _, err = cn.Decr(KEY1, N_START + 1, N_START, 0, 0)
+  n, _, err = cn.Decr(KEY1, N_START + 1, N_START, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   // test limit of incr...
   exp = MAX_1
-	n, _, err = cn.Incr(KEY1, MAX_1, 0, 0, 0)
+  n, _, err = cn.Incr(KEY1, MAX_1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   exp = MAX
-	n, _, err = cn.Incr(KEY1, 1, 0, 0, 0)
+  n, _, err = cn.Incr(KEY1, 1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
   // overflow... wrap around
   exp = 0
-	n, _, err = cn.Incr(KEY1, 1, 0, 0, 0)
+  n, _, err = cn.Incr(KEY1, 1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 }
@@ -615,14 +615,14 @@ func TestAppend(t *testing.T) {
   cn.Del(KEY1)
   cn.Del(KEY2)
 
-	// normal append
+  // normal append
   exp := VAL1
   _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = exp + VAL2
   _, err = cn.Append(KEY1, VAL2, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	v, _, _, err := cn.Get(KEY1)
+  v, _, _, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, v, "wrong value: %s", v)
 
@@ -632,11 +632,11 @@ func TestAppend(t *testing.T) {
   if err != ErrValueNotStored {
     t.Errorf("expected 'value not stored error', got: %v", err)
   }
-	v, _, _, err = cn.Get(KEY2)
+  v, _, _, err = cn.Get(KEY2)
   assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
 
   // check CAS works...
-	v, _, cas, err := cn.Get(KEY1)
+  v, _, cas, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = v
   _, err = cn.Append(KEY1, VAL2, cas + 1)
@@ -673,14 +673,14 @@ func TestPrepend(t *testing.T) {
   cn.Del(KEY1)
   cn.Del(KEY2)
 
-	// normal append
+  // normal append
   exp := VAL1
   _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = VAL2 + exp
   _, err = cn.Prepend(KEY1, VAL2, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	v, _, _, err := cn.Get(KEY1)
+  v, _, _, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, v, "wrong value: %s", v)
 
@@ -690,11 +690,11 @@ func TestPrepend(t *testing.T) {
   if err != ErrValueNotStored {
     t.Errorf("expected 'value not stored error', got: %v", err)
   }
-	v, _, _, err = cn.Get(KEY2)
+  v, _, _, err = cn.Get(KEY2)
   assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
 
   // check CAS works...
-	v, _, cas, err := cn.Get(KEY1)
+  v, _, cas, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = v
   _, err = cn.Prepend(KEY1, VAL2, cas + 1)
@@ -745,7 +745,7 @@ func TestNoOp(t *testing.T) {
   assert.Equalf(t, nil, err, "noop unexpected error: %v", err)
   cn.Del(KEY2)
 
-	// normal append
+  // normal append
   exp := VAL1
   _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
@@ -754,7 +754,7 @@ func TestNoOp(t *testing.T) {
   exp = VAL2 + exp
   _, err = cn.Prepend(KEY1, VAL2, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	v, _, _, err := cn.Get(KEY1)
+  v, _, _, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, exp, v, "wrong value: %s", v)
   err = cn.NoOp()
@@ -766,13 +766,13 @@ func TestNoOp(t *testing.T) {
   if err != ErrValueNotStored {
     t.Errorf("expected 'value not stored error', got: %v", err)
   }
-	v, _, _, err = cn.Get(KEY2)
+  v, _, _, err = cn.Get(KEY2)
   assert.Equalf(t, ErrNotFound, err, "expected not found error: %v", err)
 
   // check CAS works...
   err = cn.NoOp()
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
-	v, _, cas, err := cn.Get(KEY1)
+  v, _, cas, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   exp = v
   _, err = cn.Prepend(KEY1, VAL2, cas + 1)
@@ -976,14 +976,14 @@ func TestQuit(t *testing.T) {
   _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
 
-	v, _, _, err := cn.Get(KEY1)
+  v, _, _, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.Equalf(t, VAL1, v, "wrong value: %s", v)
 
   err = cn.Quit()
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
 
-	_, _, _, err = cn.Get(KEY1)
+  _, _, _, err = cn.Get(KEY1)
   assert.NotEqual(t, nil, err, "expected an error (closed connection)")
 
   err = cn.Quit()
@@ -1298,7 +1298,7 @@ func testAdvGet(t *testing.T, op opCode, key string, expKey string, opq uint32) 
 
   m := &msg{
     header: header{
-			Op:  op,
+      Op:  op,
       CAS: uint64(0),
       Opaque: uint32(opq),
     },
@@ -1369,11 +1369,11 @@ func testAdvGat(t *testing.T, op opCode, key string, expKey string, opq uint32) 
 
   m := &msg{
     header: header{
-			Op:  op,
+      Op:  op,
       CAS: uint64(0),
       Opaque: uint32(opq),
     },
-		iextras: []interface{}{exp},
+    iextras: []interface{}{exp},
     oextras: []interface{}{&flags},
     key: key,
   }

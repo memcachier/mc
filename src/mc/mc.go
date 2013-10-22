@@ -68,17 +68,17 @@ func (cn *Conn) Get(key string) (val string, flags uint32, cas uint64, err error
 // testing purposes, to be able to test that a memcache server obeys the proper
 // semantics of ignoring CAS with GETs.
 func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err error) {
-	m := &msg{
-		header: header{
-			Op:  OpGet,
+  m := &msg{
+    header: header{
+      Op:  OpGet,
       CAS: uint64(ocas),
-		},
-		oextras: []interface{}{&flags},
-		key: key,
-	}
+    },
+    oextras: []interface{}{&flags},
+    key: key,
+  }
 
-	err = cn.sendRecv(m)
-	return m.val, flags, m.CAS, err
+  err = cn.sendRecv(m)
+  return m.val, flags, m.CAS, err
 }
 
 // Get and Touch. Both get the value associated with the key and update its
@@ -91,7 +91,7 @@ func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint6
     header: header{
       Op: OpGAT,
     },
-		iextras: []interface{}{exp},
+    iextras: []interface{}{exp},
     oextras: []interface{}{&flags},
     key: key,
   }
@@ -108,7 +108,7 @@ func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
     header: header{
       Op: OpTouch,
     },
-		iextras: []interface{}{exp},
+    iextras: []interface{}{exp},
     key: key,
   }
 
@@ -142,30 +142,30 @@ func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp u
   // Response: MUST NOT key, value, extras
   // CAS: If a CAS is specified (non-zero), all sets only succeed if the key
   //      exists and has the CAS specified. Otherwise, an error is returned.
-	m := &msg{
-		header: header{
-			Op:  op,
-			CAS: ocas,
-		},
-		iextras: []interface{}{flags, exp},
-		key:     key,
-		val:     val,
-	}
+  m := &msg{
+    header: header{
+      Op:  op,
+      CAS: ocas,
+    },
+    iextras: []interface{}{flags, exp},
+    key:     key,
+    val:     val,
+  }
 
-	err = cn.sendRecv(m)
-	return m.CAS, err
+  err = cn.sendRecv(m)
+  return m.CAS, err
 }
 
 // Increment a value in the cache. The value must be an unsigned 64bit integer
 // stored as an ASCII string. It will wrap when incremented outside the range.
 func (cn *Conn) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
-	return cn.incrdecr(OpIncrement, key, delta, init, exp, ocas)
+  return cn.incrdecr(OpIncrement, key, delta, init, exp, ocas)
 }
 
 // Decrement a value in the cache. The value must be an unsigned 64bit integer
 // stored as an ASCII string. It can't be decremented below 0.
 func (cn *Conn) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
-	return cn.incrdecr(OpDecrement, key, delta, init, exp, ocas)
+  return cn.incrdecr(OpDecrement, key, delta, init, exp, ocas)
 }
 
 // Incr/Decr a key/value pair in the cache.
@@ -180,32 +180,32 @@ func (cn *Conn) incrdecr(op opCode, key string, delta, init uint64, exp uint32, 
   // * response value is 64 bit unsigned binary number.
   // * if the key doesn't exist and the expiration is all 1's (0xffffffff) then
   //   the operation will fail with NOT_FOUND.
-	m := &msg{
-		header: header{
-			Op:  op,
+  m := &msg{
+    header: header{
+      Op:  op,
       CAS: ocas,
-		},
-		iextras: []interface{}{delta, init, exp},
-		key:     key,
-	}
+    },
+    iextras: []interface{}{delta, init, exp},
+    key:     key,
+  }
 
-	err = cn.sendRecv(m)
-	if err != nil {
-		return
-	}
+  err = cn.sendRecv(m)
+  if err != nil {
+    return
+  }
   // value is returned as an unsigned 64bit integer (i.e., not as a string)
-	return readInt(m.val), m.CAS, nil
+  return readInt(m.val), m.CAS, nil
 }
 
 // Convert string stored to an uint64 (where no actual byte changes are needed).
 func readInt(b string) uint64 {
-	switch len(b) {
-	case 8: // 64 bit
-		return uint64(uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56)
-	}
+  switch len(b) {
+  case 8: // 64 bit
+    return uint64(uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+      uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56)
+  }
 
-	panic(fmt.Sprintf("mc: don't know how to parse string with %d bytes", len(b)))
+  panic(fmt.Sprintf("mc: don't know how to parse string with %d bytes", len(b)))
 }
 
 // Append the value to the existing value for the key specified. An error is
@@ -217,7 +217,7 @@ func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err error) {
   m := &msg{
     header: header{
       Op: OpAppend,
-			CAS: ocas,
+      CAS: ocas,
     },
     key: key,
     val: val,
@@ -236,7 +236,7 @@ func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
   m := &msg{
     header: header{
       Op: OpPrepend,
-			CAS: ocas,
+      CAS: ocas,
     },
     key: key,
     val: val,
@@ -257,15 +257,15 @@ func (cn *Conn) DelCAS(key string, cas uint64) error {
   // Variants: [R] Del [Q]
   // Request : MUST key; MUST NOT value, extras
   // Response: MUST NOT key, value, extras
-	m := &msg{
-		header: header{
-			Op:  OpDelete,
+  m := &msg{
+    header: header{
+      Op:  OpDelete,
       CAS: cas,
-		},
-		key: key,
-	}
+    },
+    key: key,
+  }
 
-	return cn.sendRecv(m)
+  return cn.sendRecv(m)
 }
 
 // Flush the cache, that is, invalidate all keys. Note, this doesn't typically
@@ -284,7 +284,7 @@ func (cn *Conn) Flush(when uint32) (err error) {
     header: header{
       Op: OpFlush,
     },
-		iextras: []interface{}{when},
+    iextras: []interface{}{when},
   }
 
   return cn.sendRecv(m)
