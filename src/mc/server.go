@@ -11,12 +11,15 @@ import (
   "fmt"
 )
 
+// Conn is a connection to a memcache server.
 type Conn struct {
 	rwc io.ReadWriteCloser
 	l   sync.Mutex
 	buf *bytes.Buffer
+  opq uint32
 }
 
+// Dial establishes a connection to a memcache server.
 func Dial(nett, addr string) (*Conn, error) {
 	nc, err := net.Dial(nett, addr)
 	if err != nil {
@@ -27,11 +30,18 @@ func Dial(nett, addr string) (*Conn, error) {
 	return cn, nil
 }
 
+// Close closes the memcache connection.
 func (cn *Conn) Close() error {
 	return cn.rwc.Close()
 }
 
+// sendRecv sends and receives a complete memcache request/response exchange.
+//
+// LOCK INVARIANT: protected by the Conn.l lock.
 func (cn *Conn) sendRecv(m *msg) (err error) {
+	cn.l.Lock()
+	defer cn.l.Unlock()
+
   err = cn.send(m)
   if err != nil {
     return
@@ -45,14 +55,16 @@ func (cn *Conn) sendRecv(m *msg) (err error) {
   return nil
 }
 
+// send sends a request to the memcache server.
+//
+// LOCK INVARIANT: Unprotected.
 func (cn *Conn) send(m *msg) (err error) {
 	m.Magic = 0x80
 	m.ExtraLen = sizeOfExtras(m.iextras)
 	m.KeyLen = uint16(len(m.key))
 	m.BodyLen = uint32(m.ExtraLen) + uint32(m.KeyLen) + uint32(len(m.val))
-
-	cn.l.Lock()
-	defer cn.l.Unlock()
+  m.Opaque = cn.opq
+  cn.opq += 1
 
 	// Request
 	err = binary.Write(cn.buf, binary.BigEndian, m.header)
@@ -83,6 +95,8 @@ func (cn *Conn) send(m *msg) (err error) {
 
 // recv receives a memcached response. It takes a msg into which to store the
 // response.
+//
+// LOCK INVARIANT: Unprotected.
 func (cn *Conn) recv(m *msg) (err error) {
 	err = binary.Read(cn.rwc, binary.BigEndian, &m.header)
 	if err != nil {
@@ -113,6 +127,7 @@ func (cn *Conn) recv(m *msg) (err error) {
 	return checkError(m)
 }
 
+// checkError checks if the received response is an error.
 func checkError(m *msg) error {
 	err, ok := errMap[m.ResvOrStatus]
 	if !ok {
@@ -121,6 +136,7 @@ func checkError(m *msg) error {
 	return err
 }
 
+// sizeOfExtras returns the size of the extras field for the memcache request.
 func sizeOfExtras(extras []interface{}) (l uint8) {
 	for _, e := range extras {
 		switch e.(type) {
