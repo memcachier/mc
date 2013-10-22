@@ -1288,7 +1288,7 @@ func testThread(t *testing.T, id int) {
 func TestThreaded(t *testing.T) {
   testInit(t)
 
-  for i := 0; i < 30; i++ {
+  for i := 0; i < 20; i++ {
     go testThread(t, i)
   }
 }
@@ -1447,15 +1447,18 @@ func TestGetStats(t *testing.T) {
     GET_MISSES = 1993
   )
 
+  // wait for other tests to finish...
+  time.Sleep(2000 * time.Millisecond)
+
   // clear cache and get starting point.
   cn.Flush(0)
   stats, err := cn.Stats()
   assert.Equalf(t, nil, err, "unexpected error: %v", err)
   assert.T(t, len(stats) > 0, "stats is empty! ", stats)
-  _, err = strconv.ParseUint(stats["get_misses"], 10, 64)
+  startMisses, err := strconv.ParseUint(stats["get_misses"], 10, 64)
   assert.Equalf(t, nil, err, "unexpected error: %v, stats struct: %v",
     err, stats)
-  _, err = strconv.ParseUint(stats["get_hits"], 10, 64)
+  startHits, err := strconv.ParseUint(stats["get_hits"], 10, 64)
   assert.Equalf(t, nil, err, "unexpected error: %v, stats struct: %v",
     err, stats)
 
