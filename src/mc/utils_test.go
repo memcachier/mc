@@ -1,11 +1,11 @@
 package mc
 
 import (
-	"bytes"
-	"github.com/bmizerany/assert"
-	"testing"
-	"net"
-	"runtime"
+  "bytes"
+  "github.com/bmizerany/assert"
+  "testing"
+  "net"
+  "runtime"
 )
 
 // start connection
