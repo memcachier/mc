@@ -2,11 +2,11 @@
 
 ## Install
 
-		$ goinstall github.com/bmizerany/mc.go
+		$ go get github.com/bmizerany/mc
 
 ## Use
 
-		import "github.com/bmizerany/mc.go"
+		import "github.com/bmizerany/mc"
 
 		func main() {
 			// Error handling omitted for demo
