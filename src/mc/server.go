@@ -26,8 +26,12 @@ func Dial(nett, addr string) (*Conn, error) {
     return nil, err
   }
 
-  cn := &Conn{rwc: nc, buf: new(bytes.Buffer)}
+  cn := NewConnection(nc)
   return cn, nil
+}
+
+func NewConnection(conn io.ReadWriteCloser) *Conn {
+  return &Conn{rwc: conn, buf: new(bytes.Buffer)}
 }
 
 // Close closes the memcache connection.
