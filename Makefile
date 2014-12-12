@@ -12,8 +12,9 @@ mc: src/mc/*.go
 
 test: mc
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR) $(GO) test -v mc; \
+	@GOPATH=$(CURDIR) $(GO) test -v mc; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
+	@exit $ST
 
 clean:
 	go clean
