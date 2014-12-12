@@ -7,3 +7,4 @@ _testmain.go
 .DS_Store
 *.prof
 mc.test
+test.pids
