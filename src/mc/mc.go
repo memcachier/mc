@@ -124,8 +124,8 @@ func (cn *Conn) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64
 
 // Replace an existing key/value in the cache. Fails if key doesn't already
 // exist in cache.
-func (cn *Conn) Rep(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error){
-  // Variants: Rep [Q]
+func (cn *Conn) Replace(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error){
+  // Variants: Replace [Q]
   return cn.setGeneric(OpReplace, key, val, ocas, flags, exp)
 }
 
@@ -136,7 +136,7 @@ func (cn *Conn) Add(key, val string, flags, exp uint32) (cas uint64, err error) 
   return cn.setGeneric(OpAdd, key, val, 0, flags, exp)
 }
 
-// Set/Add/Rep a key/value pair in the cache.
+// Set/Add/Replace a key/value pair in the cache.
 func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
   // Request : MUST key, value, extras ([0..3] flags, [4..7] expiration)
   // Response: MUST NOT key, value, extras

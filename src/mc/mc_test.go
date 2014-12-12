@@ -265,7 +265,7 @@ func TestReplace(t *testing.T) {
   cn.Del(KEY1)
 
   // check replace works... (key not already present)
-  _, err := cn.Rep(KEY1, VAL1, 0, 0, 0)
+  _, err := cn.Replace(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, ErrNotFound, err,
     "expected an error replacing non-existent key: %v", err)
   _, _, _, err = cn.Get(KEY1)
@@ -277,14 +277,14 @@ func TestReplace(t *testing.T) {
   v, _, _, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL1, v, "wrong value: %v", v)
-  _, err = cn.Rep(KEY1, VAL2, 0, 0, 0)
+  _, err = cn.Replace(KEY1, VAL2, 0, 0, 0)
   v, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
 
   // check replace works [2nd take]... (key not already present)
   cn.Del(KEY1)
-  _, err = cn.Rep(KEY1, VAL1, 0, 0, 0)
+  _, err = cn.Replace(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, ErrNotFound, err,
     "expected an error replacing non-existent key: %v", err)
   _, _, _, err = cn.Get(KEY1)
@@ -293,11 +293,11 @@ func TestReplace(t *testing.T) {
   // What happens when I replace a value and give a good CAS?...
   cas, err := cn.Set(KEY1, VAL1, 0, 0, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  cas, err = cn.Rep(KEY1, VAL1, 0, 0, cas)
+  cas, err = cn.Replace(KEY1, VAL1, 0, 0, cas)
   assert.Equalf(t, nil, err, "replace with good CAS failed: %v", err)
 
   // bad CAS
-  _, err = cn.Rep(KEY1, VAL2, 0, 0, cas + 1)
+  _, err = cn.Replace(KEY1, VAL2, 0, 0, cas + 1)
   assert.Equalf(t, ErrKeyExists, err, "replace with bad CAS failed: %v", err)
 }
 
