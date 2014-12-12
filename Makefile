@@ -11,7 +11,9 @@ mc: src/mc/*.go
 	@cd bin && GOPATH=$(CURDIR) $(GO) build mc
 
 test: mc
-	@GOPATH=$(CURDIR) $(GO) test -v mc
+	@memcached -p 11289 & echo $$! > test.pids
+	@GOPATH=$(CURDIR) $(GO) test -v mc; \
+	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 
 clean:
 	go clean
