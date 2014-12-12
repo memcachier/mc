@@ -11,7 +11,7 @@ import (
 )
 
 const (
-  mcAddr    = "localhost:11211"
+  mcAddr    = "localhost:11289"
   doAuth    = false
   authOnMac = true
   user      = "user-1"
@@ -910,7 +910,6 @@ func TestFlush(t *testing.T) {
 
 
 // Test flush, flush future.
-// XXX: Memcached is broken for this.
 func TestFlushFuture(t *testing.T) {
   testInit(t)
 
@@ -938,17 +937,36 @@ func TestFlushFuture(t *testing.T) {
   err = cn.Flush(0)
   assert.Equalf(t, nil, err, "flush produced error: %v", err)
 
+  // get KEY1 -> null
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key! err: %v", err)
+
+  // re-set KEY1
+  _, err = cn.Set(KEY1, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+
   // flush again, but in future
   err = cn.Flush(2)
 
-  // get KEY1, KEY2
+  // XXX: Memcached is broken for this.
+  // get KEY2 -- memcached bug where flush in future can resurrect items
+  // _, _, _, err = cn.Get(KEY2)
+  // assert.Equalf(t, ErrNotFound, err, "shouldn't have found key! err: %v", err)
+
+  // get KEY1
   _, _, _, err = cn.Get(KEY1)
-  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key! err: %v", err)
-  _, _, _, err = cn.Get(KEY2)
-  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key! err: %v", err)
+  assert.Equalf(t, nil, err, "should have found key1! err: %v", err)
+
+  time.Sleep(500 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, nil, err, "should have found key1! err: %v", err)
 
   // wait for flush to expire
-  time.Sleep(2000 * time.Millisecond)
+  time.Sleep(1600 * time.Millisecond)
+
+  _, _, _, err = cn.Get(KEY1)
+  assert.Equalf(t, ErrNotFound, err, "shouldn't have found key! err: %v", err)
 }
 
 
@@ -1242,7 +1260,7 @@ func TestGAT(t *testing.T) {
 
 
 // Some basic tests that functions work
-func testThread(t *testing.T, id int) {
+func testThread(t *testing.T, id int, ch chan bool) {
   const (
     KEY1 = "foo"
     VAL1 = "boo"
@@ -1282,14 +1300,22 @@ func testThread(t *testing.T, id int) {
   if cas1 == cas1x {
     assert.Equalf(t, idx, v, "wrong value (cas didn't change): %s", v)
   }
+
+  ch <- true
 }
 
 // Test threaded interaction...
 func TestThreaded(t *testing.T) {
   testInit(t)
 
-  for i := 0; i < 20; i++ {
-    go testThread(t, i)
+  ch := make(chan bool)
+
+  for i := 0; i < 30; i++ {
+    go testThread(t, i, ch)
+  }
+
+  for i := 0; i < 30; i++ {
+    _ = <- ch
   }
 }
 

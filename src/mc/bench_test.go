@@ -6,7 +6,7 @@ import (
 
 func BenchmarkSet(b *testing.B) {
   b.StopTimer()
-  cn, err := Dial("tcp", "localhost:11211")
+  cn, err := Dial("tcp", mcAddr)
   if err != nil {
     panic(err)
   }
