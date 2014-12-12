@@ -1,5 +1,7 @@
 # mc.go: A pure Go driver for Memcached (binary protocol, thread-safe)
 
+[![Build Status](https://img.shields.io/travis/memcachier/mc.svg?style=flat)](https://travis-ci.org/memcachier/mc)
+
 ## Install
 
 		$ go get github.com/bmizerany/mc
