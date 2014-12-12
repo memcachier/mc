@@ -1031,15 +1031,42 @@ func TestExpiration(t *testing.T) {
   // 1 second expiration...
   _, err = cn.Set(KEY1, VAL1, 0, 1, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
-  time.Sleep(1000 * time.Millisecond)
+  time.Sleep(1100 * time.Millisecond)
   _, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
+
+  v, _, _, err  = cn.Get(KEY0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
+  assert.Equalf(t, VAL1, v, "wrong value: %v", v)
+}
+
+// Test expiration works...
+// See Note [Expiration] in mc.go for details of how expiration works.
+// NOTE: Can't really test long expirations properly...
+func TestExpirationTouch(t *testing.T) {
+  if testing.Short() {
+    t.Skip("skipping test in short mode.")
+  }
+
+  testInit(t)
+
+  const (
+    KEY0 = "zoo"
+    KEY1 = "foo"
+    KEY2 = "goo"
+    VAL1 = "moo"
+    VAL2 = "bar"
+  )
+
+  // no expiration, should last forever...
+  _, err := cn.Set(KEY0, VAL1, 0, 0, 0)
+  assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
 
   // 2 second expiration...
   _, err = cn.Set(KEY1, VAL2, 0, 2, 0)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
   time.Sleep(100 * time.Millisecond)
-  v, _, _, err = cn.Get(KEY1)
+  v, _, _, err := cn.Get(KEY1)
   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
   // 800 total...
@@ -1106,6 +1133,10 @@ func TestExpiration(t *testing.T) {
 
 // Test Touch command works...
 func TestTouch(t *testing.T) {
+  if testing.Short() {
+    t.Skip("skipping test in short mode.")
+  }
+
   testInit(t)
 
   const (
@@ -1152,6 +1183,10 @@ func TestTouch(t *testing.T) {
 // Test GAT (get-and-touch) works...
 // See Note [Expiration] in mc.go for details of how expiration works.
 func TestGAT(t *testing.T) {
+  if testing.Short() {
+    t.Skip("skipping test in short mode.")
+  }
+
   testInit(t)
 
   const (
