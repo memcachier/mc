@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 ifndef GO
 GO=go
 endif

@@ -957,13 +957,8 @@ func TestFlushFuture(t *testing.T) {
   _, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, nil, err, "should have found key1! err: %v", err)
 
-  time.Sleep(500 * time.Millisecond)
-
-  _, _, _, err = cn.Get(KEY1)
-  assert.Equalf(t, nil, err, "should have found key1! err: %v", err)
-
   // wait for flush to expire
-  time.Sleep(1600 * time.Millisecond)
+  time.Sleep(2500 * time.Millisecond)
 
   _, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "shouldn't have found key! err: %v", err)
@@ -987,8 +982,8 @@ func TestQuit(t *testing.T) {
   testInit(t)
 
   const (
-    KEY1 = "foo"
-    VAL1 = "bar"
+    KEY1 = "fooz"
+    VAL1 = "barz"
   )
 
   _, err := cn.Set(KEY1, VAL1, 0, 0, 0)
@@ -1097,8 +1092,8 @@ func TestExpiration(t *testing.T) {
   v, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, nil, err, "should be in cache still: %v", err)
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
-  // 3200 (4000) total...
-  time.Sleep(1300 * time.Millisecond)
+  // 3500 (4300) total...
+  time.Sleep(1600 * time.Millisecond)
   _, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
 
@@ -1132,7 +1127,7 @@ func TestTouch(t *testing.T) {
   _, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, nil, err, "shouldn't be an error: %v", err)
 
-  time.Sleep(1000 * time.Millisecond)
+  time.Sleep(1500 * time.Millisecond)
 
   _, _, _, err = cn.Get(KEY1)
   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache: %v", err)
@@ -1191,7 +1186,7 @@ func TestGAT(t *testing.T) {
   assert.Equalf(t, VAL2, v, "wrong value: %v", v)
   assert.Equalf(t, FLAGS, f, "wrong flags: %v", f)
 
-  time.Sleep(1000 * time.Millisecond)
+  time.Sleep(1500 * time.Millisecond)
 
   _, _, _, err = cn.Get(KEY2)
   assert.Equalf(t, ErrNotFound, err, "shouldn't be in cache anymore: %v", err)
