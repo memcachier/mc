@@ -8,6 +8,10 @@ go:
   - 1.4
   - tip
 
+matrix:
+  allow_failures:
+    - go: tip
+
 before_install:
   - travis_retry sudo apt-get update
 
@@ -15,6 +19,7 @@ install:
   - travis_retry sudo apt-get install memcached
   - git submodule init
   - git submodule update
+  - memcached -h | head -1
 
 script: make && make test
 
