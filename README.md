@@ -1,5 +1,6 @@
 # mc.go: A Go client for Memcached
 
+[![godoc](https://godoc.org/github.com/memcachier/mc?status.svg)](http://godoc.org/github.com/memcachier/mc)
 [![Build Status](https://img.shields.io/travis/memcachier/mc.svg?style=flat)](https://travis-ci.org/memcachier/mc)
 
 This is a (pure) Go client for [Memcached](http://memcached.org). It supports
