@@ -1,0 +1,9 @@
+[submodule "deps/src/github.com/kr/pretty"]
+	path = deps/src/github.com/kr/pretty
+	url = https://github.com/kr/pretty.git
+[submodule "deps/src/github.com/bmizerany/assert"]
+	path = deps/src/github.com/bmizerany/assert
+	url = https://github.com/bmizerany/assert.git
+[submodule "deps/src/github.com/kr/text"]
+	path = deps/src/github.com/kr/text
+	url = https://github.com/kr/text.git
