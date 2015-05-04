@@ -32,9 +32,9 @@ func NewMCError(status uint16) *MCError {
       return &MCError{Status:status, Message: ErrUnknownCommand}
     case 0x82:
       return &MCError{Status:status, Message: ErrOutOfMemory}
-    default:
-      return nil
   }
+
+  return nil
 }
 
 func (err MCError) Error() string {
