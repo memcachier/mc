@@ -8,7 +8,7 @@ import (
 )
 
 // Auth performs SASL authentication (using the PLAIN method) with the server.
-func (cn *Conn) Auth(user, pass string) *MCError {
+func (cn *Conn) Auth(user, pass string) *Error {
 	s, err := cn.authList()
 	if err != nil {
 		return err
@@ -19,12 +19,12 @@ func (cn *Conn) Auth(user, pass string) *MCError {
 		return cn.authPlain(user, pass)
 	}
 
-	return &MCError{0xffff, fmt.Sprintf("mc: unknown auth types %q", s)}
+	return &Error{0xffff, fmt.Sprintf("mc: unknown auth types %q", s)}
 }
 
 // authList runs the SASL authentication list command with the server to
 // retrieve the list of support authentication mechansims.
-func (cn *Conn) authList() (s string, err *MCError) {
+func (cn *Conn) authList() (s string, err *Error) {
 	m := &msg{
 		header: header{
 			Op: OpAuthList,
@@ -36,7 +36,7 @@ func (cn *Conn) authList() (s string, err *MCError) {
 }
 
 // authPlain performs SASL authentication using the PLAIN method.
-func (cn *Conn) authPlain(user, pass string) *MCError {
+func (cn *Conn) authPlain(user, pass string) *Error {
 	m := &msg{
 		header: header{
 			Op: OpAuthStart,

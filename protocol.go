@@ -2,18 +2,18 @@ package mc
 
 // Deal with the protocol specification of Memcached.
 
-// MCError represents a MemCache error (including the status code)
-type MCError struct {
+// Error represents a MemCache error (including the status code)
+type Error struct {
 	Status  uint16
 	Message string
 }
 
-func (err MCError) Error() string {
+func (err Error) Error() string {
 	return err.Message
 }
 
-// NewMCError takes a status from the server and creates a matching MCError.
-func NewMCError(status uint16) *MCError {
+// NewError takes a status from the server and creates a matching Error.
+func NewError(status uint16) *Error {
 	switch status {
 	case 0:
 		return nil
@@ -46,17 +46,17 @@ func NewMCError(status uint16) *MCError {
 
 // Errors
 var (
-	ErrNotFound       = &MCError{1, "mc: not found"}
-	ErrKeyExists      = &MCError{2, "mc: key exists"}
-	ErrValueTooLarge  = &MCError{3, "mc: value to large"}
-	ErrInvalidArgs    = &MCError{4, "mc: invalid arguments"}
-	ErrValueNotStored = &MCError{5, "mc: value not stored"}
-	ErrNonNumeric     = &MCError{6, "mc: incr/decr called on non-numeric value"}
-	ErrAuthRequired   = &MCError{0x20, "mc: authentication required"}
-	ErrAuthContinue   = &MCError{0x21, "mc: authentication continue (unsupported)"}
-	ErrUnknownCommand = &MCError{0x81, "mc: unknown command"}
-	ErrOutOfMemory    = &MCError{0x82, "mc: out of memory"}
-	ErrUnknownError   = &MCError{0, "mc: unknown error from server"}
+	ErrNotFound       = &Error{1, "mc: not found"}
+	ErrKeyExists      = &Error{2, "mc: key exists"}
+	ErrValueTooLarge  = &Error{3, "mc: value to large"}
+	ErrInvalidArgs    = &Error{4, "mc: invalid arguments"}
+	ErrValueNotStored = &Error{5, "mc: value not stored"}
+	ErrNonNumeric     = &Error{6, "mc: incr/decr called on non-numeric value"}
+	ErrAuthRequired   = &Error{0x20, "mc: authentication required"}
+	ErrAuthContinue   = &Error{0x21, "mc: authentication continue (unsupported)"}
+	ErrUnknownCommand = &Error{0x81, "mc: unknown command"}
+	ErrOutOfMemory    = &Error{0x82, "mc: out of memory"}
+	ErrUnknownError   = &Error{0, "mc: unknown error from server"}
 )
 
 type opCode uint8

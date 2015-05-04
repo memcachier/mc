@@ -43,7 +43,7 @@ func (cn *Conn) Close() error {
 // sendRecv sends and receives a complete memcache request/response exchange.
 //
 // LOCK INVARIANT: protected by the Conn.l lock.
-func (cn *Conn) sendRecv(m *msg) (err *MCError) {
+func (cn *Conn) sendRecv(m *msg) (err *Error) {
 	cn.l.Lock()
 	defer cn.l.Unlock()
 
@@ -63,7 +63,7 @@ func (cn *Conn) sendRecv(m *msg) (err *MCError) {
 // send sends a request to the memcache server.
 //
 // LOCK INVARIANT: Unprotected.
-func (cn *Conn) send(m *msg) *MCError {
+func (cn *Conn) send(m *msg) *Error {
 	m.Magic = magicSend
 	m.ExtraLen = sizeOfExtras(m.iextras)
 	m.KeyLen = uint16(len(m.key))
@@ -74,29 +74,29 @@ func (cn *Conn) send(m *msg) *MCError {
 	// Request
 	err := binary.Write(cn.buf, binary.BigEndian, m.header)
 	if err != nil {
-		return &MCError{0xffff, err.Error()}
+		return &Error{0xffff, err.Error()}
 	}
 
 	for _, e := range m.iextras {
 		err = binary.Write(cn.buf, binary.BigEndian, e)
 		if err != nil {
-			return &MCError{0xffff, err.Error()}
+			return &Error{0xffff, err.Error()}
 		}
 	}
 
 	_, err = io.WriteString(cn.buf, m.key)
 	if err != nil {
-		return &MCError{0xffff, err.Error()}
+		return &Error{0xffff, err.Error()}
 	}
 
 	_, err = io.WriteString(cn.buf, m.val)
 	if err != nil {
-		return &MCError{0xffff, err.Error()}
+		return &Error{0xffff, err.Error()}
 	}
 
 	_, err = cn.buf.WriteTo(cn.rwc)
 	if err != nil {
-		return &MCError{0xffff, err.Error()}
+		return &Error{0xffff, err.Error()}
 	}
 	return nil
 }
@@ -105,16 +105,16 @@ func (cn *Conn) send(m *msg) *MCError {
 // response.
 //
 // LOCK INVARIANT: Unprotected.
-func (cn *Conn) recv(m *msg) *MCError {
+func (cn *Conn) recv(m *msg) *Error {
 	err := binary.Read(cn.rwc, binary.BigEndian, &m.header)
 	if err != nil {
-		return &MCError{0xffff, err.Error()}
+		return &Error{0xffff, err.Error()}
 	}
 
 	bd := make([]byte, m.BodyLen)
 	_, err = io.ReadFull(cn.rwc, bd)
 	if err != nil {
-		return &MCError{0xffff, err.Error()}
+		return &Error{0xffff, err.Error()}
 	}
 
 	buf := bytes.NewBuffer(bd)
@@ -123,7 +123,7 @@ func (cn *Conn) recv(m *msg) *MCError {
 		for _, e := range m.oextras {
 			err := binary.Read(buf, binary.BigEndian, e)
 			if err != nil {
-				return &MCError{0xffff, err.Error()}
+				return &Error{0xffff, err.Error()}
 			}
 		}
 	}
@@ -132,7 +132,7 @@ func (cn *Conn) recv(m *msg) *MCError {
 	vlen := int(m.BodyLen) - int(m.ExtraLen) - int(m.KeyLen)
 	m.val = string(buf.Next(int(vlen)))
 
-	return NewMCError(m.ResvOrStatus)
+	return NewError(m.ResvOrStatus)
 }
 
 // sizeOfExtras returns the size of the extras field for the memcache request.

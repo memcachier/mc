@@ -18,7 +18,7 @@ const (
 	pass      = "pass"
 )
 
-var mcNil = (*MCError)(nil)
+var mcNil = (*Error)(nil)
 
 // shared connection
 var cn *Conn
