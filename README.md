@@ -1,14 +1,17 @@
-# mc.go: A pure Go driver for Memcached (binary protocol, thread-safe)
+# mc.go: A Go client for Memcached
 
 [![Build Status](https://img.shields.io/travis/memcachier/mc.svg?style=flat)](https://travis-ci.org/memcachier/mc)
 
+This is a (pure) Go client for [Memcached](http://memcached.org). It supports
+the binary Memcached protocol and SASL authentication. It's thread-safe.
+
 ## Install
 
-		$ go get github.com/bmizerany/mc
+		$ go get github.com/memcachier/mc
 
 ## Use
 
-		import "github.com/bmizerany/mc"
+		import "github.com/memcachier/mc"
 
 		func main() {
 			// Error handling omitted for demo
@@ -42,37 +45,43 @@
 			}
 		}
 
-## Please Contribute
+## Missing Feature
 
-Not all of the commands are implemented. Only the ones I immedietly needed. Each command is
-trival to implement. If you'd like add one, please do so and send a pull request.
+There is nearly coverage of the Memcached protocol, but at the moment we only
+support a single Memcached server. Support for a Memcached cluster using a
+sharding / hashing method is still needed.
 
-The current commands are:
+The biggest missing protocol feature is support for `multi_get` and other
+batched operations.
 
-	Get, Set, Del, Incr, Decr
+The `Stats` call also doesn't support sending a key across, which is needed for
+finer grained stats and resetting counters on the server.
+
+There is also no support for asynchronous IO.
 
 ## Performance
 
-Right now the mutex is by far the largest bottleneck. There are thoughts on how to reduce it's impact. Any help is always appreciated.
+Right now we use a single per-connection mutex and don't support pipe-lining any
+operations.
 
-## LICENCE
+## Get involved!
 
-Copyright (C) 2011 by Blake Mizerany
+We are happy to receive bug reports, fixes, documentation enhancements,
+and other improvements.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Please report bugs via the
+[github issue tracker](http://github.com/memcachier/mc/issues).
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+Master [git repository](http://github.com/memcachier/mc):
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE. 
+* `git clone git://github.com/memcachier/mc.git`
+
+## Licensing
+
+This library is MIT-licensed.
+
+## Authors
+
+This library is written and maintained by David Terei (<code@davidterei.com>).
+It was originally written by [Blake Mizerany](https://github.com/bmizerany/mc).
+
