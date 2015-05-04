@@ -247,13 +247,13 @@ func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err *MCError)
 }
 
 // Delete a key/value from the cache.
-func (cn *Conn) Del(key string) error {
+func (cn *Conn) Del(key string) (err *MCError) {
 	return cn.DelCAS(key, 0)
 }
 
 // Delete a key/value from the cache but only if the CAS specified matches the
 // CAS in the cache.
-func (cn *Conn) DelCAS(key string, cas uint64) error {
+func (cn *Conn) DelCAS(key string, cas uint64) (err *MCError) {
 	// Variants: [R] Del [Q]
 	// Request : MUST key; MUST NOT value, extras
 	// Response: MUST NOT key, value, extras

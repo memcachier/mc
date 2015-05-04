@@ -2,59 +2,61 @@ package mc
 
 // Deal with the protocol specification of Memcached.
 
+// MCError represents a MemCache error (including the status code)
 type MCError struct {
 	Status  uint16
 	Message string
-}
-
-func NewMCError(status uint16) *MCError {
-	switch status {
-	case 1:
-		return &MCError{Status: status, Message: ErrNotFound}
-	case 2:
-		return &MCError{Status: status, Message: ErrKeyExists}
-	case 3:
-		return &MCError{Status: status, Message: ErrValueTooLarge}
-	case 4:
-		return &MCError{Status: status, Message: ErrInvalidArgs}
-	case 5:
-		return &MCError{Status: status, Message: ErrValueNotStored}
-	case 6:
-		return &MCError{Status: status, Message: ErrNonNumeric}
-	case 0x20:
-		return &MCError{Status: status, Message: ErrAuthRequired}
-
-	// we only support PLAIN auth, no mechanism that would make use of auth
-	// continue, so make it an error for now for completeness.
-	case 0x21:
-		return &MCError{Status: status, Message: ErrAuthContinue}
-	case 0x81:
-		return &MCError{Status: status, Message: ErrUnknownCommand}
-	case 0x82:
-		return &MCError{Status: status, Message: ErrOutOfMemory}
-	}
-
-	return nil
 }
 
 func (err MCError) Error() string {
 	return err.Message
 }
 
+// NewMCError takes a status from the server and creates a matching MCError.
+func NewMCError(status uint16) *MCError {
+	switch status {
+	case 0:
+		return nil
+	case 1:
+		return ErrNotFound
+	case 2:
+		return ErrKeyExists
+	case 3:
+		return ErrValueTooLarge
+	case 4:
+		return ErrInvalidArgs
+	case 5:
+		return ErrValueNotStored
+	case 6:
+		return ErrNonNumeric
+	case 0x20:
+		return ErrAuthRequired
+
+	// we only support PLAIN auth, no mechanism that would make use of auth
+	// continue, so make it an error for now for completeness.
+	case 0x21:
+		return ErrAuthContinue
+	case 0x81:
+		return ErrUnknownCommand
+	case 0x82:
+		return ErrOutOfMemory
+	}
+	return ErrUnknownError
+}
+
 // Errors
 var (
-	ErrNotFound       = "mc: not found"
-	ErrKeyExists      = "mc: key exists"
-	ErrValueTooLarge  = "mc: value to large"
-	ErrInvalidArgs    = "mc: invalid arguments"
-	ErrValueNotStored = "mc: value not stored"
-	ErrNonNumeric     = "mc: incr/decr called on non-numeric value"
-	ErrAuthRequired   = "mc: authentication required"
-	ErrAuthContinue   = "mc: authentication continue (unsupported)"
-	ErrUnknownCommand = "mc: unknown command"
-	ErrOutOfMemory    = "mc: out of memory"
-	// for unknown errors from client...
-	ErrUnknownError = "mc: unknown error from server"
+	ErrNotFound       = &MCError{1, "mc: not found"}
+	ErrKeyExists      = &MCError{2, "mc: key exists"}
+	ErrValueTooLarge  = &MCError{3, "mc: value to large"}
+	ErrInvalidArgs    = &MCError{4, "mc: invalid arguments"}
+	ErrValueNotStored = &MCError{5, "mc: value not stored"}
+	ErrNonNumeric     = &MCError{6, "mc: incr/decr called on non-numeric value"}
+	ErrAuthRequired   = &MCError{0x20, "mc: authentication required"}
+	ErrAuthContinue   = &MCError{0x21, "mc: authentication continue (unsupported)"}
+	ErrUnknownCommand = &MCError{0x81, "mc: unknown command"}
+	ErrOutOfMemory    = &MCError{0x82, "mc: out of memory"}
+	ErrUnknownError   = &MCError{0, "mc: unknown error from server"}
 )
 
 type opCode uint8

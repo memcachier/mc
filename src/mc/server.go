@@ -131,11 +131,6 @@ func (cn *Conn) recv(m *msg) *MCError {
 	vlen := int(m.BodyLen) - int(m.ExtraLen) - int(m.KeyLen)
 	m.val = string(buf.Next(int(vlen)))
 
-	return checkError(m)
-}
-
-// checkError checks if the received response is an error.
-func checkError(m *msg) *MCError {
 	return NewMCError(m.ResvOrStatus)
 }
 
