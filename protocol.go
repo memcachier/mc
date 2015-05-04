@@ -15,30 +15,30 @@ func (err Error) Error() string {
 // NewError takes a status from the server and creates a matching Error.
 func NewError(status uint16) *Error {
 	switch status {
-	case 0:
+	case StatusOK:
 		return nil
-	case 1:
+	case StatusNotFound:
 		return ErrNotFound
-	case 2:
+	case StatusKeyExists:
 		return ErrKeyExists
-	case 3:
+	case StatusValueTooLarge:
 		return ErrValueTooLarge
-	case 4:
+	case StatusInvalidArgs:
 		return ErrInvalidArgs
-	case 5:
+	case StatusValueNotStored:
 		return ErrValueNotStored
-	case 6:
+	case StatusNonNumeric:
 		return ErrNonNumeric
-	case 0x20:
+	case StatusAuthRequired:
 		return ErrAuthRequired
 
 	// we only support PLAIN auth, no mechanism that would make use of auth
 	// continue, so make it an error for now for completeness.
-	case 0x21:
+	case StatusAuthContinue:
 		return ErrAuthContinue
-	case 0x81:
+	case StatusUnknownCommand:
 		return ErrUnknownCommand
-	case 0x82:
+	case StatusOutOfMemory:
 		return ErrOutOfMemory
 	}
 	return ErrUnknownError
@@ -63,6 +63,7 @@ var (
 
 // Status Codes that may be returned (usually as part of an Error).
 const (
+	StatusOK             = 0
 	StatusNotFound       = 1
 	StatusKeyExists      = 2
 	StatusValueTooLarge  = 3
