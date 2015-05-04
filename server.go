@@ -30,6 +30,7 @@ func Dial(nett, addr string) (*Conn, error) {
 	return cn, nil
 }
 
+// NewConnection establishes a new connections to a memcache server.
 func NewConnection(conn io.ReadWriteCloser) *Conn {
 	return &Conn{rwc: conn, buf: new(bytes.Buffer)}
 }
@@ -63,12 +64,12 @@ func (cn *Conn) sendRecv(m *msg) (err *MCError) {
 //
 // LOCK INVARIANT: Unprotected.
 func (cn *Conn) send(m *msg) *MCError {
-	m.Magic = 0x80
+	m.Magic = magicSend
 	m.ExtraLen = sizeOfExtras(m.iextras)
 	m.KeyLen = uint16(len(m.key))
 	m.BodyLen = uint32(m.ExtraLen) + uint32(m.KeyLen) + uint32(len(m.val))
 	m.Opaque = cn.opq
-	cn.opq += 1
+	cn.opq++
 
 	// Request
 	err := binary.Write(cn.buf, binary.BigEndian, m.header)

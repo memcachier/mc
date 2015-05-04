@@ -3,7 +3,7 @@ ifndef GO
 GO:=go
 endif
 
-.PHONY: all install deps clean fmt vet help
+.PHONY: all install deps clean fmt vet lint help
 
 all: mc
 
@@ -22,7 +22,7 @@ test: mc
 
 test-full: mc
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR)/deps $(GO) test -v mc; ST=$?; \
+	@GOPATH=$(CURDIR)/deps $(GO) test -v; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
@@ -35,6 +35,11 @@ fmt:
 vet:
 	@$(GO) vet
 
+lint:
+	@command -v golint >/dev/null 2>&1 \
+		|| { echo >&2 "The 'golint' tool is required, please install"; exit 1;  }
+	@golint
+
 help:
 	@echo "Build Targets"
 	@echo "   all        - Build mc"
@@ -44,5 +49,6 @@ help:
 	@echo "   clean      - Remove built sources"
 	@echo "   fmt        - Format the source code using 'go fmt'"
 	@echo "   vet        - Analyze the source code for potential errors"
+	@echo "   lint       - Analyze the source code for style mistakes"
 	@echo ""
 

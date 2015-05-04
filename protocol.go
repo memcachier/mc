@@ -109,8 +109,8 @@ const (
 type magicCode uint8
 
 const (
-	MagicSend magicCode = 0x80
-	MagicRecv magicCode = 0x81
+	magicSend magicCode = 0x80
+	magicRecv magicCode = 0x81
 )
 
 // Memcache header

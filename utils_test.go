@@ -28,9 +28,8 @@ func testAuth(cn *Conn, t *testing.T) bool {
 	} else if runtime.GOOS == "darwin" {
 		if !authOnMac {
 			return false
-		} else {
-			println("On Darwin but testing auth anyway")
 		}
+		println("On Darwin but testing auth anyway")
 	} else {
 		println("Not on Darwin, testing auth")
 	}
