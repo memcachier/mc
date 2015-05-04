@@ -1,4 +1,4 @@
-// Memcache client for Go.
+// Memcache client for Go supporting binary protocol and SASL authentication.
 package mc
 
 import (
@@ -44,7 +44,7 @@ import (
 // Expiration.
 // * In seconds - when value of int is less than or equal
 //   to: 60 * 60 * 24 * 30 (e.g., seconds in a month).
-// * As a unix timestamp - otherwise.
+// * As a UNIX timestamp - otherwise.
 //
 // * Memcached accounts for time passing with a single global counter updated
 //   once a second, so it therefore has an error margin of 1 second (as you
