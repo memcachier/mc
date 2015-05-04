@@ -3,11 +3,11 @@ ifndef GO
 GO:=go
 endif
 
-.PHONY: all install deps clean fmt vet lint help
+.PHONY: all deps clean fmt vet lint help
 
-all: mc
+all: build
 
-mc: *.go
+build: *.go
 	@$(GO) build
 
 deps:
@@ -42,7 +42,7 @@ lint:
 
 help:
 	@echo "Build Targets"
-	@echo "   all        - Build mc"
+	@echo "   build      - Build mc"
 	@echo "   deps       - Git checkout dependencies"
 	@echo "   test       - Quick test of mc"
 	@echo "   test-full  - Longer test of mc against a real memcached process"
