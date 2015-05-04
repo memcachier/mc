@@ -447,7 +447,7 @@ func TestIncrDecr(t *testing.T) {
 	assert.Equalf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 
 	// test CAS works... (should fail, doesn't match)
-	exp = exp
+	exp = exp + 0
 	n, cas, err = cn.Decr(KEY1, 1, 87, 0, cas+97)
 	assert.Equal(t, ErrKeyExists, err, "expected CAS mismatch: %v", err)
 	assert.Equal(t, uint64(0), n, "expected 0 due to CAS mismatch: %d", n)

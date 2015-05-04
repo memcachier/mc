@@ -368,6 +368,4 @@ func (cn *Conn) Stats() (stats map[string]string, err *MCError) {
 		}
 		stats[m.key] = m.val
 	}
-
-	return
 }
