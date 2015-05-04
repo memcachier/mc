@@ -1,19 +1,20 @@
 # Client
 
-* Stat command
-* Multi-get?
-* Multi command
-* Other than multi-get any use for the command variants?
-* Performance
+Features:
+* Cluster support
+* Multi (batch) support
+* Full stats command support
+* Asynchronous IO
+
+Error Handling:
 * Timeouts
-* Doesn't actually support multiple nodes...
-* Handle dead servers...
-* Compression?
+* Dead-servers & fail-over
+
+Nice-to-have:
 * Simple namespacing
+* Compression
+* Split large keys
 
-# Testing
-
-* Cache limit hit... (memcachier)
-* SASL
-* malformed requests
+Performance:
+* Pipe-lining
 
