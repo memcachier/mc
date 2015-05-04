@@ -7,7 +7,7 @@ import (
   "strings"
 )
 
-func (cn *Conn) Auth(user, pass string) error {
+func (cn *Conn) Auth(user, pass string) *MCError {
   s, err := cn.authList()
   if err != nil {
     return err
@@ -18,10 +18,10 @@ func (cn *Conn) Auth(user, pass string) error {
     return cn.authPlain(user, pass)
   }
 
-  return fmt.Errorf("mc: unknown auth types %q", s)
+  return &MCError{0xffff, fmt.Sprintf("mc: unknown auth types %q", s)}
 }
 
-func (cn *Conn) authList() (s string, err error) {
+func (cn *Conn) authList() (s string, err *MCError) {
   m := &msg{
     header: header{
       Op: OpAuthList,
@@ -32,7 +32,7 @@ func (cn *Conn) authList() (s string, err error) {
   return m.val, err
 }
 
-func (cn *Conn) authPlain(user, pass string) error {
+func (cn *Conn) authPlain(user, pass string) *MCError {
   m := &msg{
     header: header{
       Op: OpAuthStart,

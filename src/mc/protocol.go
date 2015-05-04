@@ -2,41 +2,60 @@ package mc
 
 // Deal with the protocol specification of Memcached.
 
-import (
-  "errors"
-)
+type MCError struct {
+  Status uint16
+  Message string
+}
+
+func NewMCError(status uint16) *MCError {
+  switch status {
+    case 1:
+      return &MCError{Status:status, Message: ErrNotFound}
+    case 2:
+      return &MCError{Status:status, Message: ErrKeyExists}
+    case 3:
+      return &MCError{Status:status, Message: ErrValueTooLarge}
+    case 4:
+      return &MCError{Status:status, Message: ErrInvalidArgs}
+    case 5:
+      return &MCError{Status:status, Message: ErrValueNotStored}
+    case 6:
+      return &MCError{Status:status, Message: ErrNonNumeric}
+    case 0x20:
+      return &MCError{Status:status, Message: ErrAuthRequired}
+
+    // we only support PLAIN auth, no mechanism that would make use of auth
+    // continue, so make it an error for now for completeness.
+    case 0x21:
+      return &MCError{Status:status, Message: ErrAuthContinue}
+    case 0x81:
+      return &MCError{Status:status, Message: ErrUnknownCommand}
+    case 0x82:
+      return &MCError{Status:status, Message: ErrOutOfMemory}
+    default:
+      return nil
+  }
+}
+
+func (err MCError) Error() string {
+  return err.Message
+}
 
 // Errors
 var (
-  ErrNotFound       = errors.New("mc: not found")
-  ErrKeyExists      = errors.New("mc: key exists")
-  ErrValueTooLarge  = errors.New("mc: value to large")
-  ErrInvalidArgs    = errors.New("mc: invalid arguments")
-  ErrValueNotStored = errors.New("mc: value not stored")
-  ErrNonNumeric     = errors.New("mc: incr/decr called on non-numeric value")
-  ErrAuthRequired   = errors.New("mc: authentication required")
-  ErrAuthContinue   = errors.New("mc: authentication continue (unsupported)")
-  ErrUnknownCommand = errors.New("mc: unknown command")
-  ErrOutOfMemory    = errors.New("mc: out of memory")
+  ErrNotFound       = "mc: not found"
+  ErrKeyExists      = "mc: key exists"
+  ErrValueTooLarge  = "mc: value to large"
+  ErrInvalidArgs    = "mc: invalid arguments"
+  ErrValueNotStored = "mc: value not stored"
+  ErrNonNumeric     = "mc: incr/decr called on non-numeric value"
+  ErrAuthRequired   = "mc: authentication required"
+  ErrAuthContinue   = "mc: authentication continue (unsupported)"
+  ErrUnknownCommand = "mc: unknown command"
+  ErrOutOfMemory    = "mc: out of memory"
   // for unknown errors from client...
-  ErrUnknownError   = errors.New("mc: unknown error from server")
+  ErrUnknownError   = "mc: unknown error from server"
 )
-
-var errMap = map[uint16]error{
-  0:    nil,
-  1:    ErrNotFound,
-  2:    ErrKeyExists,
-  3:    ErrValueTooLarge,
-  4:    ErrInvalidArgs,
-  5:    ErrValueNotStored,
-  6:    ErrNonNumeric,
-  0x20: ErrAuthRequired,
-  // we only support PLAIN auth, no mechanism that would make use of auth
-  // continue, so make it an error for now for completeness.
-  0x21: ErrAuthContinue,
-  0x81: ErrUnknownCommand,
-  0x82: ErrOutOfMemory,
-}
 
 type opCode uint8
 
