@@ -74,29 +74,29 @@ func (cn *Conn) send(m *msg) *Error {
 	// Request
 	err := binary.Write(cn.buf, binary.BigEndian, m.header)
 	if err != nil {
-		return &Error{0xffff, err.Error()}
+		return &Error{StatusNetworkError, err.Error()}
 	}
 
 	for _, e := range m.iextras {
 		err = binary.Write(cn.buf, binary.BigEndian, e)
 		if err != nil {
-			return &Error{0xffff, err.Error()}
+			return &Error{StatusNetworkError, err.Error()}
 		}
 	}
 
 	_, err = io.WriteString(cn.buf, m.key)
 	if err != nil {
-		return &Error{0xffff, err.Error()}
+		return &Error{StatusNetworkError, err.Error()}
 	}
 
 	_, err = io.WriteString(cn.buf, m.val)
 	if err != nil {
-		return &Error{0xffff, err.Error()}
+		return &Error{StatusNetworkError, err.Error()}
 	}
 
 	_, err = cn.buf.WriteTo(cn.rwc)
 	if err != nil {
-		return &Error{0xffff, err.Error()}
+		return &Error{StatusNetworkError, err.Error()}
 	}
 	return nil
 }
@@ -108,13 +108,13 @@ func (cn *Conn) send(m *msg) *Error {
 func (cn *Conn) recv(m *msg) *Error {
 	err := binary.Read(cn.rwc, binary.BigEndian, &m.header)
 	if err != nil {
-		return &Error{0xffff, err.Error()}
+		return &Error{StatusNetworkError, err.Error()}
 	}
 
 	bd := make([]byte, m.BodyLen)
 	_, err = io.ReadFull(cn.rwc, bd)
 	if err != nil {
-		return &Error{0xffff, err.Error()}
+		return &Error{StatusNetworkError, err.Error()}
 	}
 
 	buf := bytes.NewBuffer(bd)
@@ -123,7 +123,7 @@ func (cn *Conn) recv(m *msg) *Error {
 		for _, e := range m.oextras {
 			err := binary.Read(buf, binary.BigEndian, e)
 			if err != nil {
-				return &Error{0xffff, err.Error()}
+				return &Error{StatusNetworkError, err.Error()}
 			}
 		}
 	}

@@ -19,7 +19,7 @@ func (cn *Conn) Auth(user, pass string) *Error {
 		return cn.authPlain(user, pass)
 	}
 
-	return &Error{0xffff, fmt.Sprintf("mc: unknown auth types %q", s)}
+	return &Error{StatusAuthUnknown, fmt.Sprintf("mc: unknown auth types %q", s)}
 }
 
 // authList runs the SASL authentication list command with the server to

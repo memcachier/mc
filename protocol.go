@@ -44,19 +44,38 @@ func NewError(status uint16) *Error {
 	return ErrUnknownError
 }
 
-// Errors
+// Errors mc may return. Some errors aren't represented here as the message is
+// dynamically generated. Status Code however captures all possible values for
+// Error.Status.
 var (
-	ErrNotFound       = &Error{1, "mc: not found"}
-	ErrKeyExists      = &Error{2, "mc: key exists"}
-	ErrValueTooLarge  = &Error{3, "mc: value to large"}
-	ErrInvalidArgs    = &Error{4, "mc: invalid arguments"}
-	ErrValueNotStored = &Error{5, "mc: value not stored"}
-	ErrNonNumeric     = &Error{6, "mc: incr/decr called on non-numeric value"}
-	ErrAuthRequired   = &Error{0x20, "mc: authentication required"}
-	ErrAuthContinue   = &Error{0x21, "mc: authentication continue (unsupported)"}
-	ErrUnknownCommand = &Error{0x81, "mc: unknown command"}
-	ErrOutOfMemory    = &Error{0x82, "mc: out of memory"}
-	ErrUnknownError   = &Error{0, "mc: unknown error from server"}
+	ErrNotFound       = &Error{StatusNotFound, "mc: not found"}
+	ErrKeyExists      = &Error{StatusKeyExists, "mc: key exists"}
+	ErrValueTooLarge  = &Error{StatusValueNotStored, "mc: value to large"}
+	ErrInvalidArgs    = &Error{StatusInvalidArgs, "mc: invalid arguments"}
+	ErrValueNotStored = &Error{StatusValueNotStored, "mc: value not stored"}
+	ErrNonNumeric     = &Error{StatusNonNumeric, "mc: incr/decr called on non-numeric value"}
+	ErrAuthRequired   = &Error{StatusAuthRequired, "mc: authentication required"}
+	ErrAuthContinue   = &Error{StatusAuthContinue, "mc: authentication continue (unsupported)"}
+	ErrUnknownCommand = &Error{StatusUnknownCommand, "mc: unknown command"}
+	ErrOutOfMemory    = &Error{StatusOutOfMemory, "mc: out of memory"}
+	ErrUnknownError   = &Error{StatusUnknownError, "mc: unknown error from server"}
+)
+
+// Status Codes that may be returned (usually as part of an Error).
+const (
+	StatusNotFound       = 1
+	StatusKeyExists      = 2
+	StatusValueTooLarge  = 3
+	StatusInvalidArgs    = 4
+	StatusValueNotStored = 5
+	StatusNonNumeric     = 6
+	StatusAuthRequired   = 0x20
+	StatusAuthContinue   = 0x21
+	StatusUnknownCommand = 0x81
+	StatusOutOfMemory    = 0x82
+	StatusAuthUnknown    = 0xfff0
+	StatusNetworkError   = 0xfff1
+	StatusUnknownError   = 0xffff
 )
 
 type opCode uint8

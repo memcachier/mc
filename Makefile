@@ -14,13 +14,13 @@ deps:
 	git submodule init
 	git submodule update
 
-test: mc
+test: build
 	@memcached -p 11289 & echo $$! > test.pids
 	@GOPATH=$(CURDIR)/deps $(GO) test -test.short -v; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
-test-full: mc
+test-full: build
 	@memcached -p 11289 & echo $$! > test.pids
 	@GOPATH=$(CURDIR)/deps $(GO) test -v; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
