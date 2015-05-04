@@ -100,6 +100,7 @@ func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint6
 	return m.val, flags, m.CAS, err
 }
 
+// Touch updates the expiration time on a key/value pair in the cache.
 func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err *MCError) {
 	// Variants: Touch
 	// Request : MUST key, extras; MUST NOT value
