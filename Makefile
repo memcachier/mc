@@ -7,11 +7,8 @@ endif
 
 all: mc
 
-mc: src/mc/*.go
-	@GOPATH=$(CURDIR) $(GO) build mc
-
-install:
-	@GOPATH=$(CURDIR) $(GO) install mc
+mc: *.go
+	@$(GO) build
 
 deps:
 	git submodule init
@@ -19,30 +16,28 @@ deps:
 
 test: mc
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR) $(GO) test -test.short -v mc; ST=$?; \
+	@GOPATH=$(CURDIR)/deps $(GO) test -test.short -v; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
 test-full: mc
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR) $(GO) test -v mc; ST=$?; \
+	@GOPATH=$(CURDIR)/deps $(GO) test -v mc; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
 clean:
-	@go clean
-	@rm -Rf bin
+	@$(GO) clean
 
 fmt:
-	@GOPATH=$(CURDIR) go fmt mc
+	@$(GO) fmt
 
 vet:
-	@GOPATH=$(CURDIR) go vet mc
+	@$(GO) vet
 
 help:
 	@echo "Build Targets"
 	@echo "   all        - Build mc"
-	@echo "   install    - Install mc to 'pkg' directory"
 	@echo "   deps       - Git checkout dependencies"
 	@echo "   test       - Quick test of mc"
 	@echo "   test-full  - Longer test of mc against a real memcached process"
