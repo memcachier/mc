@@ -71,7 +71,7 @@ func (cn *Conn) Get(key string) (val string, flags uint32, cas uint64, err error
 func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err error) {
 	m := &msg{
 		header: header{
-			Op:  OpGet,
+			Op:  opGet,
 			CAS: uint64(ocas),
 		},
 		oextras: []interface{}{&flags},
@@ -90,7 +90,7 @@ func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint6
 	// Response: MAY key, value, extras ([0..3] flags)
 	m := &msg{
 		header: header{
-			Op: OpGAT,
+			Op: opGAT,
 		},
 		iextras: []interface{}{exp},
 		oextras: []interface{}{&flags},
@@ -108,7 +108,7 @@ func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
 	// Response: MUST NOT key, value, extras
 	m := &msg{
 		header: header{
-			Op: OpTouch,
+			Op: opTouch,
 		},
 		iextras: []interface{}{exp},
 		key:     key,
@@ -121,21 +121,21 @@ func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
 // Set sets a key/value pair in the cache.
 func (cn *Conn) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Set [Q]
-	return cn.setGeneric(OpSet, key, val, ocas, flags, exp)
+	return cn.setGeneric(opSet, key, val, ocas, flags, exp)
 }
 
 // Replace replaces an existing key/value in the cache. Fails if key doesn't
 // already exist in cache.
 func (cn *Conn) Replace(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
 	// Variants: Replace [Q]
-	return cn.setGeneric(OpReplace, key, val, ocas, flags, exp)
+	return cn.setGeneric(opReplace, key, val, ocas, flags, exp)
 }
 
 // Add adds a new key/value to the cache. Fails if the key already exists in the
 // cache.
 func (cn *Conn) Add(key, val string, flags, exp uint32) (cas uint64, err error) {
 	// Variants: Add [Q]
-	return cn.setGeneric(OpAdd, key, val, 0, flags, exp)
+	return cn.setGeneric(opAdd, key, val, 0, flags, exp)
 }
 
 // Set/Add/Replace a key/value pair in the cache.
@@ -162,13 +162,13 @@ func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp u
 // integer stored as an ASCII string. It will wrap when incremented outside the
 // range.
 func (cn *Conn) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
-	return cn.incrdecr(OpIncrement, key, delta, init, exp, ocas)
+	return cn.incrdecr(opIncrement, key, delta, init, exp, ocas)
 }
 
 // Decr decrements a value in the cache. The value must be an unsigned 64bit
 // integer stored as an ASCII string. It can't be decremented below 0.
 func (cn *Conn) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
-	return cn.incrdecr(OpDecrement, key, delta, init, exp, ocas)
+	return cn.incrdecr(opDecrement, key, delta, init, exp, ocas)
 }
 
 // Incr/Decr a key/value pair in the cache.
@@ -219,7 +219,7 @@ func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err error) {
 	// Response: MUST NOT key, value, extras
 	m := &msg{
 		header: header{
-			Op:  OpAppend,
+			Op:  opAppend,
 			CAS: ocas,
 		},
 		key: key,
@@ -238,7 +238,7 @@ func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
 	// Response: MUST NOT key, value, extras
 	m := &msg{
 		header: header{
-			Op:  OpPrepend,
+			Op:  opPrepend,
 			CAS: ocas,
 		},
 		key: key,
@@ -262,7 +262,7 @@ func (cn *Conn) DelCAS(key string, cas uint64) (err error) {
 	// Response: MUST NOT key, value, extras
 	m := &msg{
 		header: header{
-			Op:  OpDelete,
+			Op:  opDelete,
 			CAS: cas,
 		},
 		key: key,
@@ -285,7 +285,7 @@ func (cn *Conn) Flush(when uint32) (err error) {
 	// descriptive of its function.
 	m := &msg{
 		header: header{
-			Op: OpFlush,
+			Op: opFlush,
 		},
 		iextras: []interface{}{when},
 	}
@@ -301,7 +301,7 @@ func (cn *Conn) NoOp() (err error) {
 	// Response: MUST NOT key, value, extras
 	m := &msg{
 		header: header{
-			Op: OpNoop,
+			Op: opNoop,
 		},
 	}
 
@@ -317,7 +317,7 @@ func (cn *Conn) Version() (ver string, err error) {
 	// value is the version as a string in form "X.Y.Z"
 	m := &msg{
 		header: header{
-			Op: OpVersion,
+			Op: opVersion,
 		},
 	}
 
@@ -332,7 +332,7 @@ func (cn *Conn) Quit() (err error) {
 	// Response: MUST NOT key, value, extras
 	m := &msg{
 		header: header{
-			Op: OpQuit,
+			Op: opQuit,
 		},
 	}
 
@@ -349,7 +349,7 @@ func (cn *Conn) Stats() (stats map[string]string, err error) {
 	//           response that MUST NOT have key, value. ALL MUST NOT extras.
 	m := &msg{
 		header: header{
-			Op: OpStat,
+			Op: opStat,
 		},
 	}
 

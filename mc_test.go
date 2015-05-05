@@ -1349,14 +1349,14 @@ func testAdvGet(t *testing.T, op opCode, key string, expKey string, opq uint32) 
 	assert.Equalf(t, mcNil, err, "Unexpected error! %s", err)
 	// XXX: Issues here with new server send/recv split! Seems a golang bug to do
 	// with lifting variables to heap perhaps and sharing?
-	// assert.Equalf(t, op, m.header.Op, "Response has wrong op code! %d != %d", op, m.header.Op)
-	// assert.Equalf(t, opq, m.header.Opaque, "Response has wrong opaque! %d != %d", opq, m.header.Opaque)
+	// assert.Equalf(t, op, m.header.op, "Response has wrong op code! %d != %d", op, m.header.op)
+	// assert.Equalf(t, opq, m.header.opaque, "Response has wrong opaque! %d != %d", opq, m.header.opaque)
 	// assert.Equalf(t, expKey, m.key, "Get returned key! %s", m.key)
 
 	return m
 }
 
-// Test that the various get types work and that Opaque works... e.g., all the
+// Test that the various get types work and that opaque works... e.g., all the
 // components needed for multi_get.
 func TestGetExotic(t *testing.T) {
 	const (
@@ -1373,32 +1373,32 @@ func TestGetExotic(t *testing.T) {
 	// on key miss, getq doesn't return a response.
 
 	// get
-	testAdvGet(t, OpGet, Key, "", 123)
-	testAdvGet(t, OpGet, Key, "", 0)
-	testAdvGet(t, OpGet, Key, "", 0xffffffff)
-	testAdvGet(t, OpGet, Key, "", 0xfffffff0)
-	testAdvGet(t, OpGet, Key, "", 0xf0f0f0f0)
+	testAdvGet(t, opGet, Key, "", 123)
+	testAdvGet(t, opGet, Key, "", 0)
+	testAdvGet(t, opGet, Key, "", 0xffffffff)
+	testAdvGet(t, opGet, Key, "", 0xfffffff0)
+	testAdvGet(t, opGet, Key, "", 0xf0f0f0f0)
 
 	// getq
-	testAdvGet(t, OpGetQ, Key, "", 123)
-	testAdvGet(t, OpGetQ, Key, "", 0)
-	testAdvGet(t, OpGetQ, Key, "", 0xffffffff)
-	testAdvGet(t, OpGetQ, Key, "", 0xfffffff0)
-	testAdvGet(t, OpGetQ, Key, "", 0xf0f0f0f0)
+	testAdvGet(t, opGetQ, Key, "", 123)
+	testAdvGet(t, opGetQ, Key, "", 0)
+	testAdvGet(t, opGetQ, Key, "", 0xffffffff)
+	testAdvGet(t, opGetQ, Key, "", 0xfffffff0)
+	testAdvGet(t, opGetQ, Key, "", 0xf0f0f0f0)
 
 	// getk
-	testAdvGet(t, OpGetK, Key, Key, 123)
-	testAdvGet(t, OpGetK, Key, Key, 0)
-	testAdvGet(t, OpGetK, Key, Key, 0xffffffff)
-	testAdvGet(t, OpGetK, Key, Key, 0xfffffff0)
-	testAdvGet(t, OpGetK, Key, Key, 0xf0f0f0f0)
+	testAdvGet(t, opGetK, Key, Key, 123)
+	testAdvGet(t, opGetK, Key, Key, 0)
+	testAdvGet(t, opGetK, Key, Key, 0xffffffff)
+	testAdvGet(t, opGetK, Key, Key, 0xfffffff0)
+	testAdvGet(t, opGetK, Key, Key, 0xf0f0f0f0)
 
 	// getkq
-	testAdvGet(t, OpGetKQ, Key, Key, 123)
-	testAdvGet(t, OpGetKQ, Key, Key, 0)
-	testAdvGet(t, OpGetKQ, Key, Key, 0xffffffff)
-	testAdvGet(t, OpGetKQ, Key, Key, 0xfffffff0)
-	testAdvGet(t, OpGetKQ, Key, Key, 0xf0f0f0f0)
+	testAdvGet(t, opGetKQ, Key, Key, 123)
+	testAdvGet(t, opGetKQ, Key, Key, 0)
+	testAdvGet(t, opGetKQ, Key, Key, 0xffffffff)
+	testAdvGet(t, opGetKQ, Key, Key, 0xfffffff0)
+	testAdvGet(t, opGetKQ, Key, Key, 0xf0f0f0f0)
 }
 
 func testAdvGat(t *testing.T, op opCode, key string, expKey string, opq uint32) *msg {
@@ -1421,8 +1421,8 @@ func testAdvGat(t *testing.T, op opCode, key string, expKey string, opq uint32) 
 	assert.Equalf(t, mcNil, err, "Unexpected error! %s", err)
 	// XXX: Issues here with new server send/recv split! Seems a golang bug to do
 	// with lifting variables to heap perhaps and sharing?
-	// assert.Equalf(t, op, m.header.Op, "Response has wrong op code! %d != %d", op, m.header.Op)
-	// assert.Equalf(t, opq, m.header.Opaque, "Response has wrong opaque! %d != %d", opq, m.header.Opaque)
+	// assert.Equalf(t, op, m.header.op, "Response has wrong op code! %d != %d", op, m.header.op)
+	// assert.Equalf(t, opq, m.header.opaque, "Response has wrong opaque! %d != %d", opq, m.header.opaque)
 	// assert.Equalf(t, expKey, m.key, "Get returned key! %s", m.key)
 
 	return m
@@ -1445,32 +1445,32 @@ func TestGatExotic(t *testing.T) {
 	// aspect is functioning.
 
 	// get
-	testAdvGat(t, OpGAT, Key, "", 123)
-	testAdvGat(t, OpGAT, Key, "", 0)
-	testAdvGat(t, OpGAT, Key, "", 0xffffffff)
-	testAdvGat(t, OpGAT, Key, "", 0xfffffff0)
-	testAdvGat(t, OpGAT, Key, "", 0xf0f0f0f0)
+	testAdvGat(t, opGAT, Key, "", 123)
+	testAdvGat(t, opGAT, Key, "", 0)
+	testAdvGat(t, opGAT, Key, "", 0xffffffff)
+	testAdvGat(t, opGAT, Key, "", 0xfffffff0)
+	testAdvGat(t, opGAT, Key, "", 0xf0f0f0f0)
 
 	// getq
-	testAdvGat(t, OpGATQ, Key, "", 123)
-	testAdvGat(t, OpGATQ, Key, "", 0)
-	testAdvGat(t, OpGATQ, Key, "", 0xffffffff)
-	testAdvGat(t, OpGATQ, Key, "", 0xfffffff0)
-	testAdvGat(t, OpGATQ, Key, "", 0xf0f0f0f0)
+	testAdvGat(t, opGATQ, Key, "", 123)
+	testAdvGat(t, opGATQ, Key, "", 0)
+	testAdvGat(t, opGATQ, Key, "", 0xffffffff)
+	testAdvGat(t, opGATQ, Key, "", 0xfffffff0)
+	testAdvGat(t, opGATQ, Key, "", 0xf0f0f0f0)
 
 	// getk
-	testAdvGat(t, OpGATK, Key, Key, 123)
-	testAdvGat(t, OpGATK, Key, Key, 0)
-	testAdvGat(t, OpGATK, Key, Key, 0xffffffff)
-	testAdvGat(t, OpGATK, Key, Key, 0xfffffff0)
-	testAdvGat(t, OpGATK, Key, Key, 0xf0f0f0f0)
+	testAdvGat(t, opGATK, Key, Key, 123)
+	testAdvGat(t, opGATK, Key, Key, 0)
+	testAdvGat(t, opGATK, Key, Key, 0xffffffff)
+	testAdvGat(t, opGATK, Key, Key, 0xfffffff0)
+	testAdvGat(t, opGATK, Key, Key, 0xf0f0f0f0)
 
 	// getkq
-	testAdvGat(t, OpGATKQ, Key, Key, 123)
-	testAdvGat(t, OpGATKQ, Key, Key, 0)
-	testAdvGat(t, OpGATKQ, Key, Key, 0xffffffff)
-	testAdvGat(t, OpGATKQ, Key, Key, 0xfffffff0)
-	testAdvGat(t, OpGATKQ, Key, Key, 0xf0f0f0f0)
+	testAdvGat(t, opGATKQ, Key, Key, 123)
+	testAdvGat(t, opGATKQ, Key, Key, 0)
+	testAdvGat(t, opGATKQ, Key, Key, 0xffffffff)
+	testAdvGat(t, opGATKQ, Key, Key, 0xfffffff0)
+	testAdvGat(t, opGATKQ, Key, Key, 0xf0f0f0f0)
 }
 
 func TestGetStats(t *testing.T) {

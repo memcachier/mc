@@ -27,7 +27,7 @@ func (cn *Conn) Auth(user, pass string) error {
 func (cn *Conn) authList() (string, error) {
 	m := &msg{
 		header: header{
-			Op: OpAuthList,
+			Op: opAuthList,
 		},
 	}
 
@@ -39,7 +39,7 @@ func (cn *Conn) authList() (string, error) {
 func (cn *Conn) authPlain(user, pass string) error {
 	m := &msg{
 		header: header{
-			Op: OpAuthStart,
+			Op: opAuthStart,
 		},
 
 		key: "PLAIN",

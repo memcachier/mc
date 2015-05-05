@@ -20,6 +20,41 @@ func (err Error) Error() string {
 	return err.Message
 }
 
+// Errors mc may return. Some errors aren't represented here as the message is
+// dynamically generated. Status Code however captures all possible values for
+// Error.Status.
+var (
+	ErrNotFound       = &Error{StatusNotFound, "mc: not found", nil}
+	ErrKeyExists      = &Error{StatusKeyExists, "mc: key exists", nil}
+	ErrValueTooLarge  = &Error{StatusValueNotStored, "mc: value to large", nil}
+	ErrInvalidArgs    = &Error{StatusInvalidArgs, "mc: invalid arguments", nil}
+	ErrValueNotStored = &Error{StatusValueNotStored, "mc: value not stored", nil}
+	ErrNonNumeric     = &Error{StatusNonNumeric, "mc: incr/decr called on non-numeric value", nil}
+	ErrAuthRequired   = &Error{StatusAuthRequired, "mc: authentication required", nil}
+	ErrAuthContinue   = &Error{StatusAuthContinue, "mc: authentication continue (unsupported)", nil}
+	ErrUnknownCommand = &Error{StatusUnknownCommand, "mc: unknown command", nil}
+	ErrOutOfMemory    = &Error{StatusOutOfMemory, "mc: out of memory", nil}
+	ErrUnknownError   = &Error{StatusUnknownError, "mc: unknown error from server", nil}
+)
+
+// Status Codes that may be returned (usually as part of an Error).
+const (
+	StatusOK             = uint16(0)
+	StatusNotFound       = uint16(1)
+	StatusKeyExists      = uint16(2)
+	StatusValueTooLarge  = uint16(3)
+	StatusInvalidArgs    = uint16(4)
+	StatusValueNotStored = uint16(5)
+	StatusNonNumeric     = uint16(6)
+	StatusAuthRequired   = uint16(0x20)
+	StatusAuthContinue   = uint16(0x21)
+	StatusUnknownCommand = uint16(0x81)
+	StatusOutOfMemory    = uint16(0x82)
+	StatusAuthUnknown    = uint16(0xffff)
+	StatusNetworkError   = uint16(0xfff1)
+	StatusUnknownError   = uint16(0xffff)
+)
+
 // newError takes a status from the server and creates a matching Error.
 func newError(status uint16) error {
 	switch status {
@@ -57,85 +92,50 @@ func wrapError(status uint16, err error) error {
 	return &Error{status, err.Error(), err}
 }
 
-// Errors mc may return. Some errors aren't represented here as the message is
-// dynamically generated. Status Code however captures all possible values for
-// Error.Status.
-var (
-	ErrNotFound       = &Error{StatusNotFound, "mc: not found", nil}
-	ErrKeyExists      = &Error{StatusKeyExists, "mc: key exists", nil}
-	ErrValueTooLarge  = &Error{StatusValueNotStored, "mc: value to large", nil}
-	ErrInvalidArgs    = &Error{StatusInvalidArgs, "mc: invalid arguments", nil}
-	ErrValueNotStored = &Error{StatusValueNotStored, "mc: value not stored", nil}
-	ErrNonNumeric     = &Error{StatusNonNumeric, "mc: incr/decr called on non-numeric value", nil}
-	ErrAuthRequired   = &Error{StatusAuthRequired, "mc: authentication required", nil}
-	ErrAuthContinue   = &Error{StatusAuthContinue, "mc: authentication continue (unsupported)", nil}
-	ErrUnknownCommand = &Error{StatusUnknownCommand, "mc: unknown command", nil}
-	ErrOutOfMemory    = &Error{StatusOutOfMemory, "mc: out of memory", nil}
-	ErrUnknownError   = &Error{StatusUnknownError, "mc: unknown error from server", nil}
-)
-
-// Status Codes that may be returned (usually as part of an Error).
-const (
-	StatusOK             = uint16(0)
-	StatusNotFound       = uint16(1)
-	StatusKeyExists      = uint16(2)
-	StatusValueTooLarge  = uint16(3)
-	StatusInvalidArgs    = uint16(4)
-	StatusValueNotStored = uint16(5)
-	StatusNonNumeric     = uint16(6)
-	StatusAuthRequired   = uint16(0x20)
-	StatusAuthContinue   = uint16(0x21)
-	StatusUnknownCommand = uint16(0x81)
-	StatusOutOfMemory    = uint16(0x82)
-	StatusAuthUnknown    = uint16(0xffff)
-	StatusNetworkError   = uint16(0xfff1)
-	StatusUnknownError   = uint16(0xffff)
-)
-
 type opCode uint8
 
 // Ops
 const (
-	OpGet opCode = opCode(iota)
-	OpSet
-	OpAdd
-	OpReplace
-	OpDelete
-	OpIncrement
-	OpDecrement
-	OpQuit
-	OpFlush
-	OpGetQ
-	OpNoop
-	OpVersion
-	OpGetK
-	OpGetKQ
-	OpAppend
-	OpPrepend
-	OpStat
-	OpSetQ
-	OpAddQ
-	OpReplaceQ
-	OpDeleteQ
-	OpIncrementQ
-	OpDecrementQ
-	OpQuitQ
-	OpFlushQ
-	OpAppendQ
-	OpPrependQ
+	opGet opCode = opCode(iota)
+	opSet
+	opAdd
+	opReplace
+	opDelete
+	opIncrement
+	opDecrement
+	opQuit
+	opFlush
+	opGetQ
+	opNoop
+	opVersion
+	opGetK
+	opGetKQ
+	opAppend
+	opPrepend
+	opStat
+	opSetQ
+	opAddQ
+	opReplaceQ
+	opDeleteQ
+	opIncrementQ
+	opDecrementQ
+	opQuitQ
+	opFlushQ
+	opAppendQ
+	opPrependQ
 	_ // Verbosity - not actually implemented in memcached
-	OpTouch
-	OpGAT
-	OpGATQ
-	OpGATK  = opCode(0x23)
-	OpGATKQ = opCode(0x24)
+	opTouch
+	opGAT
+	opGATQ
+	opGATK  = opCode(0x23)
+	opGATKQ = opCode(0x24)
 )
 
 // Auth Ops
 const (
-	OpAuthList opCode = opCode(iota + 0x20)
-	OpAuthStart
-	OpAuthStep
+	opAuthList opCode = opCode(iota + 0x20)
+	opAuthStart
+	opAuthStep
 )
 
 // Magic Codes
