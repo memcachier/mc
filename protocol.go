@@ -16,6 +16,8 @@ type Error struct {
 	WrappedError error
 }
 
+// Error returns a human readable reason for the error (part of the error
+// interface).
 func (err Error) Error() string {
 	return err.Message
 }
@@ -94,7 +96,7 @@ func wrapError(status uint16, err error) error {
 
 type opCode uint8
 
-// Ops
+// ops
 const (
 	opGet opCode = opCode(iota)
 	opSet
@@ -123,7 +125,7 @@ const (
 	opFlushQ
 	opAppendQ
 	opPrependQ
-	_ // Verbosity - not actually implemented in memcached
+	opVerbosity // verbosity - not implemented in memcached (but other servers)
 	opTouch
 	opGAT
 	opGATQ
