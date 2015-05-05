@@ -21,7 +21,7 @@ func (err Error) Error() string {
 }
 
 // newError takes a status from the server and creates a matching Error.
-func newError(status uint16) *Error {
+func newError(status uint16) error {
 	switch status {
 	case StatusOK:
 		return nil
@@ -52,6 +52,11 @@ func newError(status uint16) *Error {
 	return ErrUnknownError
 }
 
+// wrapError wraps an existing error in an Error value.
+func wrapError(status uint16, err error) error {
+	return &Error{status, err.Error(), err}
+}
+
 // Errors mc may return. Some errors aren't represented here as the message is
 // dynamically generated. Status Code however captures all possible values for
 // Error.Status.
@@ -71,20 +76,20 @@ var (
 
 // Status Codes that may be returned (usually as part of an Error).
 const (
-	StatusOK             = 0
-	StatusNotFound       = 1
-	StatusKeyExists      = 2
-	StatusValueTooLarge  = 3
-	StatusInvalidArgs    = 4
-	StatusValueNotStored = 5
-	StatusNonNumeric     = 6
-	StatusAuthRequired   = 0x20
-	StatusAuthContinue   = 0x21
-	StatusUnknownCommand = 0x81
-	StatusOutOfMemory    = 0x82
-	StatusAuthUnknown    = 0xfff0
-	StatusNetworkError   = 0xfff1
-	StatusUnknownError   = 0xffff
+	StatusOK             = uint16(0)
+	StatusNotFound       = uint16(1)
+	StatusKeyExists      = uint16(2)
+	StatusValueTooLarge  = uint16(3)
+	StatusInvalidArgs    = uint16(4)
+	StatusValueNotStored = uint16(5)
+	StatusNonNumeric     = uint16(6)
+	StatusAuthRequired   = uint16(0x20)
+	StatusAuthContinue   = uint16(0x21)
+	StatusUnknownCommand = uint16(0x81)
+	StatusOutOfMemory    = uint16(0x82)
+	StatusAuthUnknown    = uint16(0xffff)
+	StatusNetworkError   = uint16(0xfff1)
+	StatusUnknownError   = uint16(0xffff)
 )
 
 type opCode uint8

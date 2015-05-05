@@ -55,7 +55,7 @@ import (
 //   seconds will actually expire somewhere in the range of (3,4) seconds.
 
 // Get retrieves a value from the cache.
-func (cn *Conn) Get(key string) (val string, flags uint32, cas uint64, err *Error) {
+func (cn *Conn) Get(key string) (val string, flags uint32, cas uint64, err error) {
 	// Variants: [R] Get [Q, K, KQ]
 	// Request : MUST key; MUST NOT value, extras
 	// Response: MAY key, value, extras ([0..3] flags)
@@ -68,7 +68,7 @@ func (cn *Conn) Get(key string) (val string, flags uint32, cas uint64, err *Erro
 // NOTE: GET doesn't actually care about CAS, but we want this internally for
 // testing purposes, to be able to test that a memcache server obeys the proper
 // semantics of ignoring CAS with GETs.
-func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err *Error) {
+func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err error) {
 	m := &msg{
 		header: header{
 			Op:  OpGet,
@@ -84,7 +84,7 @@ func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas u
 
 // GAT (get and touch) retrieves the value associated with the key and updates
 // its expiration time.
-func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint64, err *Error) {
+func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint64, err error) {
 	// Variants: GAT [Q, K, KQ]
 	// Request : MUST key, extras; MUST NOT value
 	// Response: MAY key, value, extras ([0..3] flags)
@@ -102,7 +102,7 @@ func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint6
 }
 
 // Touch updates the expiration time on a key/value pair in the cache.
-func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err *Error) {
+func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
 	// Variants: Touch
 	// Request : MUST key, extras; MUST NOT value
 	// Response: MUST NOT key, value, extras
@@ -119,27 +119,27 @@ func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err *Error) {
 }
 
 // Set sets a key/value pair in the cache.
-func (cn *Conn) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err *Error) {
+func (cn *Conn) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Set [Q]
 	return cn.setGeneric(OpSet, key, val, ocas, flags, exp)
 }
 
 // Replace replaces an existing key/value in the cache. Fails if key doesn't
 // already exist in cache.
-func (cn *Conn) Replace(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err *Error) {
+func (cn *Conn) Replace(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
 	// Variants: Replace [Q]
 	return cn.setGeneric(OpReplace, key, val, ocas, flags, exp)
 }
 
 // Add adds a new key/value to the cache. Fails if the key already exists in the
 // cache.
-func (cn *Conn) Add(key, val string, flags, exp uint32) (cas uint64, err *Error) {
+func (cn *Conn) Add(key, val string, flags, exp uint32) (cas uint64, err error) {
 	// Variants: Add [Q]
 	return cn.setGeneric(OpAdd, key, val, 0, flags, exp)
 }
 
 // Set/Add/Replace a key/value pair in the cache.
-func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp uint32) (cas uint64, err *Error) {
+func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
 	// Request : MUST key, value, extras ([0..3] flags, [4..7] expiration)
 	// Response: MUST NOT key, value, extras
 	// CAS: If a CAS is specified (non-zero), all sets only succeed if the key
@@ -161,18 +161,18 @@ func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp u
 // Incr increments a value in the cache. The value must be an unsigned 64bit
 // integer stored as an ASCII string. It will wrap when incremented outside the
 // range.
-func (cn *Conn) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err *Error) {
+func (cn *Conn) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
 	return cn.incrdecr(OpIncrement, key, delta, init, exp, ocas)
 }
 
 // Decr decrements a value in the cache. The value must be an unsigned 64bit
 // integer stored as an ASCII string. It can't be decremented below 0.
-func (cn *Conn) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err *Error) {
+func (cn *Conn) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
 	return cn.incrdecr(OpDecrement, key, delta, init, exp, ocas)
 }
 
 // Incr/Decr a key/value pair in the cache.
-func (cn *Conn) incrdecr(op opCode, key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err *Error) {
+func (cn *Conn) incrdecr(op opCode, key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
 	// Variants: [R] Incr [Q], [R] Decr [Q]
 	// Request : MUST key, extras; MUST NOT value
 	//   Extras: [ 0.. 7] Amount to add/sub
@@ -213,7 +213,7 @@ func readInt(b string) uint64 {
 
 // Append appends the value to the existing value for the key specified. An
 // error is thrown if the key doesn't exist.
-func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err *Error) {
+func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Append [Q]
 	// Request : MUST key, value; MUST NOT extras
 	// Response: MUST NOT key, value, extras
@@ -232,7 +232,7 @@ func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err *Error) {
 
 // Prepend prepends the value to the existing value for the key specified. An
 // error is thrown if the key doesn't exist.
-func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err *Error) {
+func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Append [Q]
 	// Request : MUST key, value; MUST NOT extras
 	// Response: MUST NOT key, value, extras
@@ -250,13 +250,13 @@ func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err *Error) {
 }
 
 // Del deletes a key/value from the cache.
-func (cn *Conn) Del(key string) (err *Error) {
+func (cn *Conn) Del(key string) (err error) {
 	return cn.DelCAS(key, 0)
 }
 
 // DelCAS deletes a key/value from the cache but only if the CAS specified
 // matches the CAS in the cache.
-func (cn *Conn) DelCAS(key string, cas uint64) (err *Error) {
+func (cn *Conn) DelCAS(key string, cas uint64) (err error) {
 	// Variants: [R] Del [Q]
 	// Request : MUST key; MUST NOT value, extras
 	// Response: MUST NOT key, value, extras
@@ -275,7 +275,7 @@ func (cn *Conn) DelCAS(key string, cas uint64) (err *Error) {
 // typically free memory on a memcache server (doing so compromises the O(1)
 // nature of memcache). Instead nearly all servers do lazy expiration, where
 // they don't free memory but won't return any keys to you that have expired.
-func (cn *Conn) Flush(when uint32) (err *Error) {
+func (cn *Conn) Flush(when uint32) (err error) {
 	// Variants: Flush [Q]
 	// Request : MUST NOT key, value; MAY extras ([0..3] expiration)
 	// Response: MUST NOT key, value, extras
@@ -295,7 +295,7 @@ func (cn *Conn) Flush(when uint32) (err *Error) {
 
 // NoOp sends a No-Op message to the memcache server. This can be used as a
 // heartbeat for the server to check it's functioning fine still.
-func (cn *Conn) NoOp() (err *Error) {
+func (cn *Conn) NoOp() (err error) {
 	// Variants: NoOp
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, value, extras
@@ -309,7 +309,7 @@ func (cn *Conn) NoOp() (err *Error) {
 }
 
 // Version gets the version of the memcached server connected to.
-func (cn *Conn) Version() (ver string, err *Error) {
+func (cn *Conn) Version() (ver string, err error) {
 	// Variants: Version
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, extras; MUST value
@@ -326,7 +326,7 @@ func (cn *Conn) Version() (ver string, err *Error) {
 }
 
 // Quit closes the connection with memcache server (nicely).
-func (cn *Conn) Quit() (err *Error) {
+func (cn *Conn) Quit() (err error) {
 	// Variants: Quit [Q]
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, value, extras
@@ -342,7 +342,7 @@ func (cn *Conn) Quit() (err *Error) {
 }
 
 // Stats returns some statistics about the memcached server.
-func (cn *Conn) Stats() (stats map[string]string, err *Error) {
+func (cn *Conn) Stats() (stats map[string]string, err error) {
 	// Variants: Stats
 	// Request : MAY HAVE key, MUST NOT value, extra
 	// Response: Serries of responses that MUST HAVE key, value; followed by one

@@ -8,7 +8,7 @@ import (
 )
 
 // Auth performs SASL authentication (using the PLAIN method) with the server.
-func (cn *Conn) Auth(user, pass string) *Error {
+func (cn *Conn) Auth(user, pass string) error {
 	s, err := cn.authList()
 	if err != nil {
 		return err
@@ -24,19 +24,19 @@ func (cn *Conn) Auth(user, pass string) *Error {
 
 // authList runs the SASL authentication list command with the server to
 // retrieve the list of support authentication mechansims.
-func (cn *Conn) authList() (s string, err *Error) {
+func (cn *Conn) authList() (string, error) {
 	m := &msg{
 		header: header{
 			Op: OpAuthList,
 		},
 	}
 
-	err = cn.sendRecv(m)
+	err := cn.sendRecv(m)
 	return m.val, err
 }
 
 // authPlain performs SASL authentication using the PLAIN method.
-func (cn *Conn) authPlain(user, pass string) *Error {
+func (cn *Conn) authPlain(user, pass string) error {
 	m := &msg{
 		header: header{
 			Op: OpAuthStart,

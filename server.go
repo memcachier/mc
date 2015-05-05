@@ -20,10 +20,10 @@ type Conn struct {
 }
 
 // Dial establishes a connection to a memcache server.
-func Dial(nett, addr string) (*Conn, *Error) {
+func Dial(nett, addr string) (*Conn, error) {
 	nc, err := net.Dial(nett, addr)
 	if err != nil {
-		return nil, &Error{StatusNetworkError, err.Error(), err}
+		return nil, wrapError(StatusNetworkError, err)
 	}
 
 	cn := NewConnection(nc)
@@ -36,9 +36,9 @@ func NewConnection(conn io.ReadWriteCloser) *Conn {
 }
 
 // Close closes the memcache connection.
-func (cn *Conn) Close() *Error {
+func (cn *Conn) Close() error {
 	if err := cn.rwc.Close(); err != nil {
-		return &Error{StatusNetworkError, err.Error(), err}
+		return wrapError(StatusNetworkError, err)
 	}
 	return nil
 }
@@ -46,18 +46,18 @@ func (cn *Conn) Close() *Error {
 // sendRecv sends and receives a complete memcache request/response exchange.
 //
 // LOCK INVARIANT: protected by the Conn.l lock.
-func (cn *Conn) sendRecv(m *msg) (err *Error) {
+func (cn *Conn) sendRecv(m *msg) error {
 	cn.l.Lock()
 	defer cn.l.Unlock()
 
-	err = cn.send(m)
+	err := cn.send(m)
 	if err != nil {
-		return
+		return err
 	}
 
 	err = cn.recv(m)
 	if err != nil {
-		return
+		return err
 	}
 
 	return nil
@@ -66,7 +66,7 @@ func (cn *Conn) sendRecv(m *msg) (err *Error) {
 // send sends a request to the memcache server.
 //
 // LOCK INVARIANT: Unprotected.
-func (cn *Conn) send(m *msg) *Error {
+func (cn *Conn) send(m *msg) error {
 	m.Magic = magicSend
 	m.ExtraLen = sizeOfExtras(m.iextras)
 	m.KeyLen = uint16(len(m.key))
@@ -77,30 +77,31 @@ func (cn *Conn) send(m *msg) *Error {
 	// Request
 	err := binary.Write(cn.buf, binary.BigEndian, m.header)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error(), err}
+		return wrapError(StatusNetworkError, err)
 	}
 
 	for _, e := range m.iextras {
 		err = binary.Write(cn.buf, binary.BigEndian, e)
 		if err != nil {
-			return &Error{StatusNetworkError, err.Error(), err}
+			return wrapError(StatusNetworkError, err)
 		}
 	}
 
 	_, err = io.WriteString(cn.buf, m.key)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error(), err}
+		return wrapError(StatusNetworkError, err)
 	}
 
 	_, err = io.WriteString(cn.buf, m.val)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error(), err}
+		return wrapError(StatusNetworkError, err)
 	}
 
 	_, err = cn.buf.WriteTo(cn.rwc)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error(), err}
+		return wrapError(StatusNetworkError, err)
 	}
+
 	return nil
 }
 
@@ -108,16 +109,16 @@ func (cn *Conn) send(m *msg) *Error {
 // response.
 //
 // LOCK INVARIANT: Unprotected.
-func (cn *Conn) recv(m *msg) *Error {
+func (cn *Conn) recv(m *msg) error {
 	err := binary.Read(cn.rwc, binary.BigEndian, &m.header)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error(), err}
+		return wrapError(StatusNetworkError, err)
 	}
 
 	bd := make([]byte, m.BodyLen)
 	_, err = io.ReadFull(cn.rwc, bd)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error(), err}
+		return wrapError(StatusNetworkError, err)
 	}
 
 	buf := bytes.NewBuffer(bd)
@@ -126,7 +127,7 @@ func (cn *Conn) recv(m *msg) *Error {
 		for _, e := range m.oextras {
 			err := binary.Read(buf, binary.BigEndian, e)
 			if err != nil {
-				return &Error{StatusNetworkError, err.Error(), err}
+				return wrapError(StatusNetworkError, err)
 			}
 		}
 	}

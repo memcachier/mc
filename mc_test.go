@@ -12,13 +12,14 @@ import (
 
 const (
 	mcAddr    = "localhost:11289"
+	badAddr   = "127.0.0.2:23111"
 	doAuth    = false
 	authOnMac = true
 	user      = "user-1"
 	pass      = "pass"
 )
 
-var mcNil = (*Error)(nil)
+var mcNil error = nil
 
 // shared connection
 var cn *Conn
@@ -1538,4 +1539,18 @@ func TestGetStats(t *testing.T) {
 	if stats["get_hits"] != getHits {
 		t.Errorf("get_hits (%s) != expected (%s)\n", stats["get_hits"], getHits)
 	}
+}
+
+func TestErrorValue(t *testing.T) {
+	_, err := Dial("tcp", badAddr)
+	if err == nil {
+		t.Errorf("expected network error!")
+	}
+
+	mErr, ok := err.(*Error)
+	if !ok {
+		t.Errorf("type-cast of error to *Error failed!")
+	}
+
+	assert.Equalf(t, StatusNetworkError, mErr.Status, "expected 'StatusNetworkError' error: %v", mErr)
 }
