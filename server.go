@@ -20,10 +20,10 @@ type Conn struct {
 }
 
 // Dial establishes a connection to a memcache server.
-func Dial(nett, addr string) (*Conn, error) {
+func Dial(nett, addr string) (*Conn, *Error) {
 	nc, err := net.Dial(nett, addr)
 	if err != nil {
-		return nil, err
+		return nil, &Error{StatusNetworkError, err.Error(), err}
 	}
 
 	cn := NewConnection(nc)
@@ -36,8 +36,11 @@ func NewConnection(conn io.ReadWriteCloser) *Conn {
 }
 
 // Close closes the memcache connection.
-func (cn *Conn) Close() error {
-	return cn.rwc.Close()
+func (cn *Conn) Close() *Error {
+	if err := cn.rwc.Close(); err != nil {
+		return &Error{StatusNetworkError, err.Error(), err}
+	}
+	return nil
 }
 
 // sendRecv sends and receives a complete memcache request/response exchange.
@@ -74,29 +77,29 @@ func (cn *Conn) send(m *msg) *Error {
 	// Request
 	err := binary.Write(cn.buf, binary.BigEndian, m.header)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error()}
+		return &Error{StatusNetworkError, err.Error(), err}
 	}
 
 	for _, e := range m.iextras {
 		err = binary.Write(cn.buf, binary.BigEndian, e)
 		if err != nil {
-			return &Error{StatusNetworkError, err.Error()}
+			return &Error{StatusNetworkError, err.Error(), err}
 		}
 	}
 
 	_, err = io.WriteString(cn.buf, m.key)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error()}
+		return &Error{StatusNetworkError, err.Error(), err}
 	}
 
 	_, err = io.WriteString(cn.buf, m.val)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error()}
+		return &Error{StatusNetworkError, err.Error(), err}
 	}
 
 	_, err = cn.buf.WriteTo(cn.rwc)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error()}
+		return &Error{StatusNetworkError, err.Error(), err}
 	}
 	return nil
 }
@@ -108,13 +111,13 @@ func (cn *Conn) send(m *msg) *Error {
 func (cn *Conn) recv(m *msg) *Error {
 	err := binary.Read(cn.rwc, binary.BigEndian, &m.header)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error()}
+		return &Error{StatusNetworkError, err.Error(), err}
 	}
 
 	bd := make([]byte, m.BodyLen)
 	_, err = io.ReadFull(cn.rwc, bd)
 	if err != nil {
-		return &Error{StatusNetworkError, err.Error()}
+		return &Error{StatusNetworkError, err.Error(), err}
 	}
 
 	buf := bytes.NewBuffer(bd)
@@ -123,7 +126,7 @@ func (cn *Conn) recv(m *msg) *Error {
 		for _, e := range m.oextras {
 			err := binary.Read(buf, binary.BigEndian, e)
 			if err != nil {
-				return &Error{StatusNetworkError, err.Error()}
+				return &Error{StatusNetworkError, err.Error(), err}
 			}
 		}
 	}
@@ -132,7 +135,7 @@ func (cn *Conn) recv(m *msg) *Error {
 	vlen := int(m.BodyLen) - int(m.ExtraLen) - int(m.KeyLen)
 	m.val = string(buf.Next(int(vlen)))
 
-	return NewError(m.ResvOrStatus)
+	return newError(m.ResvOrStatus)
 }
 
 // sizeOfExtras returns the size of the extras field for the memcache request.

@@ -2,18 +2,26 @@ package mc
 
 // Deal with the protocol specification of Memcached.
 
-// Error represents a MemCache error (including the status code)
+// Error represents a MemCache error (including the status code). All function
+// in mc return error values of this type, despite the functions using the plain
+// error type. You can safely cast all error types returned by mc to *Error. If
+// needed, we take an underlying error value (such as a network error) and wrap
+// it in Error, storing the underlying value in WrappedError.
+//
+// error is used as the return typed instead of Error directly due to the
+// limitation in Go where error(nil) != *Error(nil).
 type Error struct {
-	Status  uint16
-	Message string
+	Status       uint16
+	Message      string
+	WrappedError error
 }
 
 func (err Error) Error() string {
 	return err.Message
 }
 
-// NewError takes a status from the server and creates a matching Error.
-func NewError(status uint16) *Error {
+// newError takes a status from the server and creates a matching Error.
+func newError(status uint16) *Error {
 	switch status {
 	case StatusOK:
 		return nil
@@ -48,17 +56,17 @@ func NewError(status uint16) *Error {
 // dynamically generated. Status Code however captures all possible values for
 // Error.Status.
 var (
-	ErrNotFound       = &Error{StatusNotFound, "mc: not found"}
-	ErrKeyExists      = &Error{StatusKeyExists, "mc: key exists"}
-	ErrValueTooLarge  = &Error{StatusValueNotStored, "mc: value to large"}
-	ErrInvalidArgs    = &Error{StatusInvalidArgs, "mc: invalid arguments"}
-	ErrValueNotStored = &Error{StatusValueNotStored, "mc: value not stored"}
-	ErrNonNumeric     = &Error{StatusNonNumeric, "mc: incr/decr called on non-numeric value"}
-	ErrAuthRequired   = &Error{StatusAuthRequired, "mc: authentication required"}
-	ErrAuthContinue   = &Error{StatusAuthContinue, "mc: authentication continue (unsupported)"}
-	ErrUnknownCommand = &Error{StatusUnknownCommand, "mc: unknown command"}
-	ErrOutOfMemory    = &Error{StatusOutOfMemory, "mc: out of memory"}
-	ErrUnknownError   = &Error{StatusUnknownError, "mc: unknown error from server"}
+	ErrNotFound       = &Error{StatusNotFound, "mc: not found", nil}
+	ErrKeyExists      = &Error{StatusKeyExists, "mc: key exists", nil}
+	ErrValueTooLarge  = &Error{StatusValueNotStored, "mc: value to large", nil}
+	ErrInvalidArgs    = &Error{StatusInvalidArgs, "mc: invalid arguments", nil}
+	ErrValueNotStored = &Error{StatusValueNotStored, "mc: value not stored", nil}
+	ErrNonNumeric     = &Error{StatusNonNumeric, "mc: incr/decr called on non-numeric value", nil}
+	ErrAuthRequired   = &Error{StatusAuthRequired, "mc: authentication required", nil}
+	ErrAuthContinue   = &Error{StatusAuthContinue, "mc: authentication continue (unsupported)", nil}
+	ErrUnknownCommand = &Error{StatusUnknownCommand, "mc: unknown command", nil}
+	ErrOutOfMemory    = &Error{StatusOutOfMemory, "mc: out of memory", nil}
+	ErrUnknownError   = &Error{StatusUnknownError, "mc: unknown error from server", nil}
 )
 
 // Status Codes that may be returned (usually as part of an Error).
