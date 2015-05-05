@@ -19,7 +19,7 @@ const (
 	pass      = "pass"
 )
 
-var mcNil error = nil
+var mcNil error
 
 // shared connection
 var cn *Conn
