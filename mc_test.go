@@ -1554,3 +1554,53 @@ func TestErrorValue(t *testing.T) {
 
 	assert.Equalf(t, StatusNetworkError, mErr.Status, "expected 'StatusNetworkError' error: %v", mErr)
 }
+
+// Test Stats reset.
+func TestStatsReset(t *testing.T) {
+	testInit(t)
+
+	const (
+		Key1 = "fab"
+	)
+
+	// clear cache and get starting point.
+	cn.Flush(0)
+
+	// get current miss stats.
+	stats, err := cn.Stats()
+	assert.Equalf(t, mcNil, err, "unexpected error: %v", err)
+	assert.T(t, len(stats) > 0, "stats is empty! ", stats)
+	misses1, errNum := strconv.ParseUint(stats["get_misses"], 10, 64)
+	assert.Equalf(t, nil, errNum, "unexpected error: %v, stats struct: %v",
+		errNum, stats)
+
+	_, _, _, err = cn.Get(Key1)
+	assert.Equalf(t, ErrNotFound, err, "shouldn't be an error: %v", err)
+
+	// get current miss stats.
+	stats, err = cn.Stats()
+	assert.Equalf(t, mcNil, err, "unexpected error: %v", err)
+	assert.T(t, len(stats) > 0, "stats is empty! ", stats)
+	misses2, errNum := strconv.ParseUint(stats["get_misses"], 10, 64)
+	assert.Equalf(t, nil, errNum, "unexpected error: %v, stats struct: %v",
+		errNum, stats)
+	
+	// make sure they incremented by one
+	assert.Equalf(t, misses1 + 1, misses2,
+		"miss stats didn't change as expected! (%d vs %d)", misses1, misses2)
+	
+	// reset stats
+	cn.StatsReset()
+
+	// get current miss stats.
+	stats, err = cn.Stats()
+	assert.Equalf(t, mcNil, err, "unexpected error: %v", err)
+	assert.T(t, len(stats) > 0, "stats is empty! ", stats)
+	misses3, errNum := strconv.ParseUint(stats["get_misses"], 10, 64)
+	assert.Equalf(t, nil, errNum, "unexpected error: %v, stats struct: %v",
+		errNum, stats)
+
+	// make sure stats back to zero
+	assert.Equalf(t, misses3, uint64(0),
+		"miss stats didn't change as expected! (%d vs %d)", misses3, uint64(0))
+}

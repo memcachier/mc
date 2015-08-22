@@ -341,8 +341,10 @@ func (cn *Conn) Quit() (err error) {
 	return
 }
 
-// Stats returns some statistics about the memcached server.
-func (cn *Conn) Stats() (stats map[string]string, err error) {
+// StatsWithKey returns some statistics about the memcached server. It supports
+// sending across a key to the server to select which statistics should be
+// returned.
+func (cn *Conn) StatsWithKey(key string) (stats map[string]string, err error) {
 	// Variants: Stats
 	// Request : MAY HAVE key, MUST NOT value, extra
 	// Response: Serries of responses that MUST HAVE key, value; followed by one
@@ -350,7 +352,8 @@ func (cn *Conn) Stats() (stats map[string]string, err error) {
 	m := &msg{
 		header: header{
 			Op: opStat,
-		},
+	 	},
+		key: key,
 	}
 
 	cn.l.Lock()
@@ -373,4 +376,15 @@ func (cn *Conn) Stats() (stats map[string]string, err error) {
 	}
 
 	return
+}
+
+// Stats returns some statistics about the memcached server.
+func (cn *Conn) Stats() (stats map[string]string, err error) {
+	return cn.StatsWithKey("")
+}
+
+// StatsReset resets the statistics stored at the memcached server.
+func (cn *Conn) StatsReset() (err error) {
+	_, err = cn.StatsWithKey("reset")
+	return err
 }

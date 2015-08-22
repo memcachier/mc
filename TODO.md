@@ -3,7 +3,6 @@
 Features:
 * Cluster support
 * Multi (batch) support
-* Full stats command support
 * Asynchronous IO
 
 Error Handling:

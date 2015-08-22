@@ -55,9 +55,6 @@ sharding / hashing method is still needed.
 The biggest missing protocol feature is support for `multi_get` and other
 batched operations.
 
-The `Stats` call also doesn't support sending a key across, which is needed for
-finer grained stats and resetting counters on the server.
-
 There is also no support for asynchronous IO.
 
 ## Performance
