@@ -14,7 +14,8 @@ Nice-to-have:
 * Simple namespacing
 * Compression
 * Split large keys
+* Connection pooling
 
 Performance:
-* Pipe-lining
+* Pipelining
 
