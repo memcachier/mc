@@ -11,12 +11,13 @@ build: *.go
 	@$(GO) build
 
 deps:
-	git submodule init
-	git submodule update
+	git submodule update --init --recursive
 
 # Yes, this is a hack, but Go's packing is also just stupid.
-work-tree: src
-	ln -s vendor src
+work-tree:
+	@if [ ! -e src ]; then \
+		ln -s vendor src; \
+	fi
 
 test: build work-tree
 	@memcached -p 11289 & echo $$! > test.pids

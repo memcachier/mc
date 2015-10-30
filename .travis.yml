@@ -6,6 +6,7 @@ go:
   - 1.2
   - 1.3
   - 1.4
+  - 1.5
   - tip
 
 matrix:
@@ -17,9 +18,10 @@ before_install:
 
 install:
   - travis_retry sudo apt-get install memcached
-  - git submodule init
-  - git submodule update
   - memcached -h | head -1
 
-script: make && make test-full
+script:
+  - make deps
+  - make
+  - make test-full
 
