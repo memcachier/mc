@@ -14,15 +14,19 @@ deps:
 	git submodule init
 	git submodule update
 
-test: build
+# Yes, this is a hack, but Go's packing is also just stupid.
+work-tree: src
+	ln -s vendor src
+
+test: build work-tree
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR)/deps $(GO) test -test.short -v; ST=$?; \
+	@GOPATH=$(CURDIR) $(GO) test -test.short -v; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
-test-full: build
+test-full: build work-tree
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR)/deps $(GO) test -v; ST=$?; \
+	@GOPATH=$(CURDIR) GO15VENDOREXPERIMENT=1 $(GO) test -v; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
@@ -44,8 +48,8 @@ help:
 	@echo "Build Targets"
 	@echo "   build      - Build mc"
 	@echo "   deps       - Git checkout dependencies"
-	@echo "   test       - Quick test of mc"
-	@echo "   test-full  - Longer test of mc against a real memcached process"
+	@echo "   test       - Quick test of mc (against memcached on port 11289)"
+	@echo "   test-full  - Longer test of mc (against memcached on port 11289)"
 	@echo "   clean      - Remove built sources"
 	@echo "   fmt        - Format the source code using 'go fmt'"
 	@echo "   vet        - Analyze the source code for potential errors"
