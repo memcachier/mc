@@ -7,5 +7,7 @@ _go_.6
 _gotest_.6
 _testmain.go
 mc.test
-src
+src/github.com
+bin
+pkg
 test.pids
