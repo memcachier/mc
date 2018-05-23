@@ -22,6 +22,12 @@ test-full: build
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
+bench: build
+	@memcached -p 11289 & echo $$! > test.pids
+	@GOPATH=$(CURDIR) $(GO) test -run "notests" -bench ".*" mc; ST=$?; \
+	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
+	@exit ${ST}
+
 clean:
 	@$(GO) clean
 
