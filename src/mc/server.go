@@ -4,6 +4,7 @@ package mc
 
 import (
 	"net"
+	"sync"
 	"time"
 )
 
@@ -13,6 +14,8 @@ type server struct {
 	// NOTE: organizing the pool as a chan makes the usage of the containing
 	// connections treadsafe
 	pool    chan *serverConn
+	isAlive bool
+	lock    sync.Mutex
 }
 
 
@@ -28,6 +31,7 @@ func newServer(address, username, password string, config *config) *server {
 		address: hostport,
 		config: config,
 		pool: make(chan *serverConn, config.PoolSize),
+		isAlive: true,
 	}
 
 	for i := 0; i < config.PoolSize; i++ {
@@ -117,4 +121,14 @@ func (s *server) quit(m *msg) {
 		c.quit(m)
 	}
 	close(s.pool)
+}
+
+func (s *server) changeAlive(alive bool) bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if s.isAlive != alive{
+		s.isAlive = alive
+		return true
+	}
+	return false
 }

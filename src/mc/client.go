@@ -5,7 +5,7 @@ package mc
 import (
 	"fmt"
 	"strings"
-	"sync"
+	"time"
 )
 
 // Protocol:
@@ -59,11 +59,7 @@ import (
 
 //
 type client struct {
-	serverMutex sync.RWMutex // make sure server list cannot be updated (server
-													 // dies or comes alive) while trying to get a server
-													 // for a key
 	servers     []*server
-	deadServers []*server  // TODO implement
 	config      *config
 }
 
@@ -73,10 +69,6 @@ func NewMC(servers, username, password string) *client {
 
 func NewMCwithConfig(servers, username, password string, config *config) *client {
 	client := &client{config: config}
-
-	// Not really needed
-	client.serverMutex.Lock()
-	defer client.serverMutex.Unlock()
 
 	s := func(r rune) bool {
 		return r == ',' || r == ';' || r == ' '
@@ -101,38 +93,35 @@ func (c *client) perform(m *msg) error {
 		}
 		err = s.perform(m)
 		if err != nil && err.(*Error).Status == StatusNetworkError && c.config.Failover {
-			// TODO mark dead and continue
-			return err
+			// Failover on network errors
+			if s.changeAlive(false) {
+				go c.wakeUp(s)
+			}
+			continue
 		}
 		return err
 	}
 	return nil
 }
 
+func (c *client) wakeUp(s *server) {
+	time.Sleep(c.config.DownRetryDelay)
+	s.changeAlive(true)
+}
+
 func (c *client) getServer(key string) (*server, error) {
-	c.serverMutex.RLock()
-	defer c.serverMutex.RUnlock()
 	idx, err := c.config.Hasher.getServerIndex(key)
 	if err != nil {
 		return nil, err
 	}
-	return c.servers[idx], nil
-}
-
-func (c *client) getAllServers(includeDead bool) []*server {
-	c.serverMutex.RLock()
-	defer c.serverMutex.RUnlock()
-
-	servers := make([]*server, 0, len(c.servers) + len(c.deadServers))
-	for _, s := range c.servers {
-		servers = append(servers, s)
-	}
-	if includeDead {
-		for _, s := range c.deadServers {
-			servers = append(servers, s)
+	nServers := uint(len(c.servers))
+	for i:=uint(0); i<nServers; i++ {
+		s := c.servers[idx + i % nServers]
+		if s.isAlive {
+			return s, nil
 		}
 	}
-	return servers
+	return nil, &Error{StatusNetworkError, "All server currently dead", nil}
 }
 
 // Get retrieves a value from the cache.
@@ -371,9 +360,10 @@ func (c *client) Flush(when uint32) (err error) {
 		iextras: []interface{}{when},
 	}
 
-	servers := c.getAllServers(false)
-	for _, s := range servers {
-		err = s.perform(m)
+	for _, s := range c.servers {
+		if s.isAlive {
+			err = s.perform(m)
+		}
 	}
 	return err // retrns err from last perform but maybe should handle differently
 }
@@ -390,9 +380,10 @@ func (c *client) NoOp() (err error) {
 		},
 	}
 
-	servers := c.getAllServers(false)
-	for _, s := range servers {
-		err = s.perform(m)
+	for _, s := range c.servers {
+		if s.isAlive {
+			err = s.perform(m)
+		}
 	}
 	return err // retrns err from last perform but maybe should handle differently
 }
@@ -411,11 +402,12 @@ func (c *client) Version() (vers map[string]string, err error) {
 	}
 
 	vers = make(map[string]string)
-	servers := c.getAllServers(false)
-	for _, s := range servers {
-		err = s.perform(m)
-		if err == nil {
-			vers[s.address] = m.val
+	for _, s := range c.servers {
+		if s.isAlive {
+			err = s.perform(m)
+			if err == nil {
+				vers[s.address] = m.val
+			}
 		}
 	}
 
@@ -433,8 +425,7 @@ func (c *client) Quit(){
 		},
 	}
 
-	servers := c.getAllServers(true)
-	for _, s := range servers {
+	for _, s := range c.servers {
 		s.quit(m)
 	}
 }
@@ -455,13 +446,14 @@ func (c *client) StatsWithKey(key string) (map[string]mcStats, error) {
 	}
 
   allStats := make(map[string]mcStats)
-	servers := c.getAllServers(false)
-	for _, s := range servers {
-		stats, err := s.performStats(m)
-		if err != nil {
-			return nil, err
+	for _, s := range c.servers {
+		if s.isAlive {
+			stats, err := s.performStats(m)
+			if err != nil {
+				return nil, err
+			}
+			allStats[s.address] = stats
 		}
-		allStats[s.address] = stats
 	}
 
 	return allStats, nil
