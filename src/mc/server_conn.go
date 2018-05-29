@@ -75,10 +75,9 @@ func (sc *serverConn) connect() error {
 	if !ok {
 		return &Error{StatusNetworkError, "Cannot convert into TCP connection", nil}
 	}
-	// TCP config TODO make configurable
-	tcpConn.SetKeepAlive(true)
-	tcpConn.SetKeepAlivePeriod(60 * time.Second)
-	tcpConn.SetNoDelay(true)
+	tcpConn.SetKeepAlive(sc.config.TcpKeepAlive)
+	tcpConn.SetKeepAlivePeriod(sc.config.TcpKeepAlivePeriod)
+	tcpConn.SetNoDelay(sc.config.TcpNoDelay)
 	// authenticate
 	err = sc.auth()
 	if err != nil {

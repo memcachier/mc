@@ -7,16 +7,19 @@ import (
 )
 
 type config struct {
-	Hasher            hasher
-	Retries           int
-	RetryDelay        time.Duration
-	Failover          bool
+	Hasher             hasher
+	Retries            int
+	RetryDelay         time.Duration
+	Failover           bool
 	// ConnectionTimeout is currently used to timeout getting connections from
 	// pool, as a sending deadline and as a reading deadline. Worst case this
 	// means a request can take 3 times the ConnectionTimeout.
-	ConnectionTimeout time.Duration
-	DownRetryDelay    time.Duration
-	PoolSize          int
+	ConnectionTimeout  time.Duration
+	DownRetryDelay     time.Duration
+	PoolSize           int
+	TcpKeepAlive       bool
+	TcpKeepAlivePeriod time.Duration
+	TcpNoDelay         bool
 }
 
 func DefaultConfig() * config {
@@ -28,5 +31,8 @@ func DefaultConfig() * config {
 		ConnectionTimeout: 2 * time.Second,
 		DownRetryDelay: 60 * time.Second,
 		PoolSize: 1,
+		TcpKeepAlive: true,
+		TcpKeepAlivePeriod: 60 * time.Second,
+		TcpNoDelay: true,
 	}
 }
