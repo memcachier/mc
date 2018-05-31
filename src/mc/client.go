@@ -57,20 +57,25 @@ import (
 //   seconds will actually expire somewhere in the range of (3,4) seconds.
 
 
-//
+// client represents a memcached client that is connected to a list of servers
 type client struct {
 	servers     []*server
 	config      *config
 }
 
+// NewMC creates a new client with the default configuration. For the default
+// configuration see DefaultConfig.
 func NewMC(servers, username, password string) *client {
 	return NewMCwithConfig(servers, username, password, DefaultConfig())
 }
 
+// NewMCwithConfig creates a new client for a given configuration
 func NewMCwithConfig(servers, username, password string, config *config) *client {
 	return newMockableMC(servers, username, password, config, newServerConn)
 }
 
+// newMockableMC creates a new client for testing that allows to mock the server
+// connection
 func newMockableMC(servers, username, password string, config *config, newMcConn connGen) *client {
 	client := &client{config: config}
 

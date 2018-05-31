@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+// config holds the Memcache client configuration. Use DefaultConfig to get
+// an initialized version.
 type config struct {
 	Hasher             hasher
 	Retries            int
@@ -22,6 +24,7 @@ type config struct {
 	TcpNoDelay         bool
 }
 
+// DefaultConfig returns a config object populated with the default values.
 func DefaultConfig() * config {
 	return &config{
 		Hasher: newModuloHasher(),

@@ -1,6 +1,6 @@
 package mc
 
-// Handles the connection between the client and memcached servers.
+// Handles all server connections to a particular memcached servers.
 
 import (
 	"net"
@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// server represents a server and contains all connections to that server
 type server struct {
 	address string
 	config  *config

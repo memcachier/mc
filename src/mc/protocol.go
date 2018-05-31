@@ -175,4 +175,5 @@ type msg struct {
 	val string // [n..x] Value (as needed, length in header)
 }
 
+// Memcache stats
 type mcStats map[string]string

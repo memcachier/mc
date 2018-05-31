@@ -1,6 +1,6 @@
 package mc
 
-// Handles the connection between the client and memcached servers.
+// Handles the connection with the memcached servers.
 
 import (
 	"bytes"
