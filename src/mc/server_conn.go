@@ -12,6 +12,16 @@ import (
 	"strings"
 )
 
+type mcConn interface {
+	perform(m *msg) error
+	performStats(m *msg) (mcStats, error)
+	quit(m *msg)
+	backup(m *msg)
+	restore(m *msg)
+}
+
+type connGen func (address, username, password string, config *config) mcConn
+
 // serverConn is a connection to a memcache server.
 type serverConn struct {
 	address   string
@@ -24,7 +34,7 @@ type serverConn struct {
 	backupMsg msg
 }
 
-func newServerConn(address, username, password string, config *config) *serverConn {
+func newServerConn(address, username, password string, config *config) mcConn {
 	serverConn := &serverConn{
 		address: address,
 		username: username,
@@ -136,7 +146,6 @@ func (sc *serverConn) authPlain() error {
 
 // sendRecv sends and receives a complete memcache request/response exchange.
 func (sc *serverConn) sendRecv(m *msg) error {
-	// fmt.Printf("sendRecv: %v, %v\n", m.header.Op, m.key)
 	err := sc.send(m)
 	if err != nil {
 		sc.resetConn(err)
@@ -247,7 +256,6 @@ func (sc *serverConn) recv(m *msg) error {
 	m.key = string(buf.Next(int(m.KeyLen)))
 	vlen := int(m.BodyLen) - int(m.ExtraLen) - int(m.KeyLen)
 	m.val = string(buf.Next(int(vlen)))
-	// fmt.Printf("recv return: %v\n", m.ResvOrStatus)
 	return newError(m.ResvOrStatus)
 }
 
@@ -280,45 +288,53 @@ func (sc *serverConn) resetConn(err error) {
 }
 
 func (sc *serverConn) backup(m *msg) {
-	sc.backupMsg.key = m.key
-	sc.backupMsg.val = m.val
-	sc.backupMsg.header.Magic = m.header.Magic
-	sc.backupMsg.header.Op = m.header.Op
-	sc.backupMsg.header.KeyLen = m.header.KeyLen
-	sc.backupMsg.header.ExtraLen = m.header.ExtraLen
-	sc.backupMsg.header.DataType = m.header.DataType
-	sc.backupMsg.header.ResvOrStatus = m.header.ResvOrStatus
-	sc.backupMsg.header.BodyLen = m.header.BodyLen
-	sc.backupMsg.header.Opaque = m.header.Opaque
-	sc.backupMsg.header.CAS = m.header.CAS
-	sc.backupMsg.iextras = nil // go way of clearing a slice, this is just fucked up
+	backupMsg(m, &sc.backupMsg)
+}
+
+func backupMsg(m *msg, backupMsg *msg) {
+	backupMsg.key = m.key
+	backupMsg.val = m.val
+	backupMsg.header.Magic = m.header.Magic
+	backupMsg.header.Op = m.header.Op
+	backupMsg.header.KeyLen = m.header.KeyLen
+	backupMsg.header.ExtraLen = m.header.ExtraLen
+	backupMsg.header.DataType = m.header.DataType
+	backupMsg.header.ResvOrStatus = m.header.ResvOrStatus
+	backupMsg.header.BodyLen = m.header.BodyLen
+	backupMsg.header.Opaque = m.header.Opaque
+	backupMsg.header.CAS = m.header.CAS
+	backupMsg.iextras = nil // go way of clearing a slice, this is just fucked up
 	for _, v := range m.iextras {
-		sc.backupMsg.iextras = append(sc.backupMsg.iextras, v)
+		backupMsg.iextras = append(backupMsg.iextras, v)
 	}
-	sc.backupMsg.oextras = nil
+	backupMsg.oextras = nil
 	for _, v := range m.oextras {
-		sc.backupMsg.oextras = append(sc.backupMsg.oextras, v)
+		backupMsg.oextras = append(backupMsg.oextras, v)
 	}
 }
 
 func (sc *serverConn) restore(m *msg) {
-	m.key = sc.backupMsg.key
-	m.val = sc.backupMsg.val
-	m.header.Magic = sc.backupMsg.header.Magic
-	m.header.Op = sc.backupMsg.header.Op
-	m.header.KeyLen = sc.backupMsg.header.KeyLen
-	m.header.ExtraLen = sc.backupMsg.header.ExtraLen
-	m.header.DataType = sc.backupMsg.header.DataType
-	m.header.ResvOrStatus = sc.backupMsg.header.ResvOrStatus
-	m.header.BodyLen = sc.backupMsg.header.BodyLen
-	m.header.Opaque = sc.backupMsg.header.Opaque
-	m.header.CAS = sc.backupMsg.header.CAS
+	restoreMsg(m, &sc.backupMsg)
+}
+
+func restoreMsg(m *msg, backupMsg *msg){
+	m.key = backupMsg.key
+	m.val = backupMsg.val
+	m.header.Magic = backupMsg.header.Magic
+	m.header.Op = backupMsg.header.Op
+	m.header.KeyLen = backupMsg.header.KeyLen
+	m.header.ExtraLen = backupMsg.header.ExtraLen
+	m.header.DataType = backupMsg.header.DataType
+	m.header.ResvOrStatus = backupMsg.header.ResvOrStatus
+	m.header.BodyLen = backupMsg.header.BodyLen
+	m.header.Opaque = backupMsg.header.Opaque
+	m.header.CAS = backupMsg.header.CAS
 	m.iextras = nil // go way of clearing a slice, this is just fucked up
-	for _, v := range sc.backupMsg.iextras {
+	for _, v := range backupMsg.iextras {
 		m.iextras = append(m.iextras, v)
 	}
 	m.oextras = nil
-	for _, v := range sc.backupMsg.oextras {
+	for _, v := range backupMsg.oextras {
 		m.oextras = append(m.oextras, v)
 	}
 }

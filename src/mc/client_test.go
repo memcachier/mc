@@ -12,8 +12,6 @@ import (
 const (
 	mcAddr    = "localhost:11289"
 	badAddr   = "127.0.0.2:23111"
-	doAuth    = false
-	authOnMac = true
 	user      = "user-1"
 	pass      = "pass"
 )

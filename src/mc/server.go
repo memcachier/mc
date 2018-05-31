@@ -13,13 +13,13 @@ type server struct {
 	config  *config
 	// NOTE: organizing the pool as a chan makes the usage of the containing
 	// connections treadsafe
-	pool    chan *serverConn
+	pool    chan mcConn
 	isAlive bool
 	lock    sync.Mutex
 }
 
 
-func newServer(address, username, password string, config *config) *server {
+func newServer(address, username, password string, config *config, newMcConn connGen) *server {
 	var hostport string
   host, port, err := net.SplitHostPort(address)
   if err == nil {
@@ -30,12 +30,12 @@ func newServer(address, username, password string, config *config) *server {
 	server := &server{
 		address: hostport,
 		config: config,
-		pool: make(chan *serverConn, config.PoolSize),
+		pool: make(chan mcConn, config.PoolSize),
 		isAlive: true,
 	}
 
 	for i := 0; i < config.PoolSize; i++ {
-		server.pool <- newServerConn(hostport, username, password, config)
+		server.pool <- newMcConn(hostport, username, password, config)
 	}
 
 	return server

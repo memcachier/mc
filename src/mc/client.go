@@ -68,6 +68,10 @@ func NewMC(servers, username, password string) *client {
 }
 
 func NewMCwithConfig(servers, username, password string, config *config) *client {
+	return newMockableMC(servers, username, password, config, newServerConn)
+}
+
+func newMockableMC(servers, username, password string, config *config, newMcConn connGen) *client {
 	client := &client{config: config}
 
 	s := func(r rune) bool {
@@ -76,7 +80,7 @@ func NewMCwithConfig(servers, username, password string, config *config) *client
 	serverList := strings.FieldsFunc(servers, s)
 	for _, addr := range serverList {
 		client.servers = append(client.servers,
-			newServer(addr, username, password, config))
+			newServer(addr, username, password, config, newMcConn))
 	}
 
 	client.config.Hasher.update(client.servers)
