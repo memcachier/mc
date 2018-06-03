@@ -6,7 +6,9 @@ import (
 
 func BenchmarkSet(b *testing.B) {
 	b.StopTimer()
-	cn, err := Dial("tcp", mcAddr)
+	c := NewMC(mcAddr, user, pass)
+	// Lazy connection. Make sure it connects before starting benchmark.
+	_, err := c.Set("foo", "bar", 0, 0, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -15,7 +17,7 @@ func BenchmarkSet(b *testing.B) {
 	defer b.StopTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err = cn.Set("foo", "bar", 0, 0, 0)
+		_, err := c.Set("foo", "bar", 0, 0, 0)
 		if err != nil {
 			panic(err)
 		}

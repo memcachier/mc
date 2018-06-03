@@ -174,3 +174,6 @@ type msg struct {
 	key string // [m..(n-1)] Key (as needed, length in header)
 	val string // [n..x] Value (as needed, length in header)
 }
+
+// Memcache stats
+type mcStats map[string]string

@@ -4,6 +4,8 @@ package mc
 
 import (
 	"fmt"
+	"strings"
+	"time"
 )
 
 // Protocol:
@@ -54,12 +56,89 @@ import (
 // * Error margin is always under time, not over. E.g., a expiration of 4
 //   seconds will actually expire somewhere in the range of (3,4) seconds.
 
+
+// client represents a memcached client that is connected to a list of servers
+type client struct {
+	servers     []*server
+	config      *config
+}
+
+// NewMC creates a new client with the default configuration. For the default
+// configuration see DefaultConfig.
+func NewMC(servers, username, password string) *client {
+	return NewMCwithConfig(servers, username, password, DefaultConfig())
+}
+
+// NewMCwithConfig creates a new client for a given configuration
+func NewMCwithConfig(servers, username, password string, config *config) *client {
+	return newMockableMC(servers, username, password, config, newServerConn)
+}
+
+// newMockableMC creates a new client for testing that allows to mock the server
+// connection
+func newMockableMC(servers, username, password string, config *config, newMcConn connGen) *client {
+	client := &client{config: config}
+
+	s := func(r rune) bool {
+		return r == ',' || r == ';' || r == ' '
+	}
+	serverList := strings.FieldsFunc(servers, s)
+	for _, addr := range serverList {
+		client.servers = append(client.servers,
+			newServer(addr, username, password, config, newMcConn))
+	}
+
+	client.config.Hasher.update(client.servers)
+
+	return client
+}
+
+func (c *client) perform(m *msg) error {
+	// failover on error
+	for {
+		s, err := c.getServer(m.key)
+		if err != nil {
+			return err
+		}
+		err = s.perform(m)
+		if err != nil && err.(*Error).Status == StatusNetworkError && c.config.Failover {
+			// Failover on network errors
+			if s.changeAlive(false) {
+				go c.wakeUp(s)
+			}
+			continue
+		}
+		return err
+	}
+	return nil
+}
+
+func (c *client) wakeUp(s *server) {
+	time.Sleep(c.config.DownRetryDelay)
+	s.changeAlive(true)
+}
+
+func (c *client) getServer(key string) (*server, error) {
+	idx, err := c.config.Hasher.getServerIndex(key)
+	if err != nil {
+		return nil, err
+	}
+	nServers := uint(len(c.servers))
+	for i:=uint(0); i<nServers; i++ {
+		s := c.servers[idx + i % nServers]
+		if s.isAlive {
+			return s, nil
+		}
+	}
+	return nil, &Error{StatusNetworkError, "All server currently dead", nil}
+}
+
 // Get retrieves a value from the cache.
-func (cn *Conn) Get(key string) (val string, flags uint32, cas uint64, err error) {
+func (c *client) Get(key string) (val string, flags uint32, cas uint64, err error) {
 	// Variants: [R] Get [Q, K, KQ]
 	// Request : MUST key; MUST NOT value, extras
 	// Response: MAY key, value, extras ([0..3] flags)
-	return cn.getCAS(key, 0)
+	return c.getCAS(key, 0)
 }
 
 // getCAS retrieves a value in the cache but only if the CAS specified matches
@@ -68,7 +147,7 @@ func (cn *Conn) Get(key string) (val string, flags uint32, cas uint64, err error
 // NOTE: GET doesn't actually care about CAS, but we want this internally for
 // testing purposes, to be able to test that a memcache server obeys the proper
 // semantics of ignoring CAS with GETs.
-func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err error) {
+func (c *client) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err error) {
 	m := &msg{
 		header: header{
 			Op:  opGet,
@@ -78,13 +157,13 @@ func (cn *Conn) getCAS(key string, ocas uint64) (val string, flags uint32, cas u
 		key:     key,
 	}
 
-	err = cn.sendRecv(m)
+	err = c.perform(m)
 	return m.val, flags, m.CAS, err
 }
 
 // GAT (get and touch) retrieves the value associated with the key and updates
 // its expiration time.
-func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint64, err error) {
+func (c *client) GAT(key string, exp uint32) (val string, flags uint32, cas uint64, err error) {
 	// Variants: GAT [Q, K, KQ]
 	// Request : MUST key, extras; MUST NOT value
 	// Response: MAY key, value, extras ([0..3] flags)
@@ -97,12 +176,12 @@ func (cn *Conn) GAT(key string, exp uint32) (val string, flags uint32, cas uint6
 		key:     key,
 	}
 
-	err = cn.sendRecv(m)
+	err = c.perform(m)
 	return m.val, flags, m.CAS, err
 }
 
 // Touch updates the expiration time on a key/value pair in the cache.
-func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
+func (c *client) Touch(key string, exp uint32) (cas uint64, err error) {
 	// Variants: Touch
 	// Request : MUST key, extras; MUST NOT value
 	// Response: MUST NOT key, value, extras
@@ -114,32 +193,32 @@ func (cn *Conn) Touch(key string, exp uint32) (cas uint64, err error) {
 		key:     key,
 	}
 
-	err = cn.sendRecv(m)
+	err = c.perform(m)
 	return m.CAS, err
 }
 
 // Set sets a key/value pair in the cache.
-func (cn *Conn) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
+func (c *client) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Set [Q]
-	return cn.setGeneric(opSet, key, val, ocas, flags, exp)
+	return c.setGeneric(opSet, key, val, ocas, flags, exp)
 }
 
 // Replace replaces an existing key/value in the cache. Fails if key doesn't
 // already exist in cache.
-func (cn *Conn) Replace(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
+func (c *client) Replace(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
 	// Variants: Replace [Q]
-	return cn.setGeneric(opReplace, key, val, ocas, flags, exp)
+	return c.setGeneric(opReplace, key, val, ocas, flags, exp)
 }
 
 // Add adds a new key/value to the cache. Fails if the key already exists in the
 // cache.
-func (cn *Conn) Add(key, val string, flags, exp uint32) (cas uint64, err error) {
+func (c *client) Add(key, val string, flags, exp uint32) (cas uint64, err error) {
 	// Variants: Add [Q]
-	return cn.setGeneric(opAdd, key, val, 0, flags, exp)
+	return c.setGeneric(opAdd, key, val, 0, flags, exp)
 }
 
 // Set/Add/Replace a key/value pair in the cache.
-func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
+func (c *client) setGeneric(op opCode, key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
 	// Request : MUST key, value, extras ([0..3] flags, [4..7] expiration)
 	// Response: MUST NOT key, value, extras
 	// CAS: If a CAS is specified (non-zero), all sets only succeed if the key
@@ -154,25 +233,25 @@ func (cn *Conn) setGeneric(op opCode, key, val string, ocas uint64, flags, exp u
 		val:     val,
 	}
 
-	err = cn.sendRecv(m)
+	err = c.perform(m)
 	return m.CAS, err
 }
 
 // Incr increments a value in the cache. The value must be an unsigned 64bit
 // integer stored as an ASCII string. It will wrap when incremented outside the
 // range.
-func (cn *Conn) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
-	return cn.incrdecr(opIncrement, key, delta, init, exp, ocas)
+func (c *client) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+	return c.incrdecr(opIncrement, key, delta, init, exp, ocas)
 }
 
 // Decr decrements a value in the cache. The value must be an unsigned 64bit
 // integer stored as an ASCII string. It can't be decremented below 0.
-func (cn *Conn) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
-	return cn.incrdecr(opDecrement, key, delta, init, exp, ocas)
+func (c *client) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+	return c.incrdecr(opDecrement, key, delta, init, exp, ocas)
 }
 
 // Incr/Decr a key/value pair in the cache.
-func (cn *Conn) incrdecr(op opCode, key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+func (c *client) incrdecr(op opCode, key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
 	// Variants: [R] Incr [Q], [R] Decr [Q]
 	// Request : MUST key, extras; MUST NOT value
 	//   Extras: [ 0.. 7] Amount to add/sub
@@ -192,7 +271,7 @@ func (cn *Conn) incrdecr(op opCode, key string, delta, init uint64, exp uint32, 
 		key:     key,
 	}
 
-	err = cn.sendRecv(m)
+	err = c.perform(m)
 	if err != nil {
 		return
 	}
@@ -213,7 +292,7 @@ func readInt(b string) uint64 {
 
 // Append appends the value to the existing value for the key specified. An
 // error is thrown if the key doesn't exist.
-func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err error) {
+func (c *client) Append(key, val string, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Append [Q]
 	// Request : MUST key, value; MUST NOT extras
 	// Response: MUST NOT key, value, extras
@@ -226,13 +305,13 @@ func (cn *Conn) Append(key, val string, ocas uint64) (cas uint64, err error) {
 		val: val,
 	}
 
-	err = cn.sendRecv(m)
+	err = c.perform(m)
 	return m.CAS, err
 }
 
 // Prepend prepends the value to the existing value for the key specified. An
 // error is thrown if the key doesn't exist.
-func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
+func (c *client) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Append [Q]
 	// Request : MUST key, value; MUST NOT extras
 	// Response: MUST NOT key, value, extras
@@ -245,18 +324,18 @@ func (cn *Conn) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
 		val: val,
 	}
 
-	err = cn.sendRecv(m)
+	err = c.perform(m)
 	return m.CAS, err
 }
 
 // Del deletes a key/value from the cache.
-func (cn *Conn) Del(key string) (err error) {
-	return cn.DelCAS(key, 0)
+func (c *client) Del(key string) (err error) {
+	return c.DelCAS(key, 0)
 }
 
 // DelCAS deletes a key/value from the cache but only if the CAS specified
 // matches the CAS in the cache.
-func (cn *Conn) DelCAS(key string, cas uint64) (err error) {
+func (c *client) DelCAS(key string, cas uint64) (err error) {
 	// Variants: [R] Del [Q]
 	// Request : MUST key; MUST NOT value, extras
 	// Response: MUST NOT key, value, extras
@@ -268,14 +347,14 @@ func (cn *Conn) DelCAS(key string, cas uint64) (err error) {
 		key: key,
 	}
 
-	return cn.sendRecv(m)
+	return c.perform(m)
 }
 
 // Flush flushes the cache, that is, invalidate all keys. Note, this doesn't
 // typically free memory on a memcache server (doing so compromises the O(1)
 // nature of memcache). Instead nearly all servers do lazy expiration, where
 // they don't free memory but won't return any keys to you that have expired.
-func (cn *Conn) Flush(when uint32) (err error) {
+func (c *client) Flush(when uint32) (err error) {
 	// Variants: Flush [Q]
 	// Request : MUST NOT key, value; MAY extras ([0..3] expiration)
 	// Response: MUST NOT key, value, extras
@@ -290,12 +369,17 @@ func (cn *Conn) Flush(when uint32) (err error) {
 		iextras: []interface{}{when},
 	}
 
-	return cn.sendRecv(m)
+	for _, s := range c.servers {
+		if s.isAlive {
+			err = s.perform(m)
+		}
+	}
+	return err // retrns err from last perform but maybe should handle differently
 }
 
 // NoOp sends a No-Op message to the memcache server. This can be used as a
 // heartbeat for the server to check it's functioning fine still.
-func (cn *Conn) NoOp() (err error) {
+func (c *client) NoOp() (err error) {
 	// Variants: NoOp
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, value, extras
@@ -305,11 +389,16 @@ func (cn *Conn) NoOp() (err error) {
 		},
 	}
 
-	return cn.sendRecv(m)
+	for _, s := range c.servers {
+		if s.isAlive {
+			err = s.perform(m)
+		}
+	}
+	return err // retrns err from last perform but maybe should handle differently
 }
 
 // Version gets the version of the memcached server connected to.
-func (cn *Conn) Version() (ver string, err error) {
+func (c *client) Version() (vers map[string]string, err error) {
 	// Variants: Version
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, extras; MUST value
@@ -321,12 +410,21 @@ func (cn *Conn) Version() (ver string, err error) {
 		},
 	}
 
-	err = cn.sendRecv(m)
-	return m.val, err
+	vers = make(map[string]string)
+	for _, s := range c.servers {
+		if s.isAlive {
+			err = s.perform(m)
+			if err == nil {
+				vers[s.address] = m.val
+			}
+		}
+	}
+
+	return
 }
 
 // Quit closes the connection with memcache server (nicely).
-func (cn *Conn) Quit() (err error) {
+func (c *client) Quit(){
 	// Variants: Quit [Q]
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, value, extras
@@ -336,15 +434,15 @@ func (cn *Conn) Quit() (err error) {
 		},
 	}
 
-	err = cn.sendRecv(m)
-	cn.Close()
-	return
+	for _, s := range c.servers {
+		s.quit(m)
+	}
 }
 
 // StatsWithKey returns some statistics about the memcached server. It supports
 // sending across a key to the server to select which statistics should be
 // returned.
-func (cn *Conn) StatsWithKey(key string) (stats map[string]string, err error) {
+func (c *client) StatsWithKey(key string) (map[string]mcStats, error) {
 	// Variants: Stats
 	// Request : MAY HAVE key, MUST NOT value, extra
 	// Response: Serries of responses that MUST HAVE key, value; followed by one
@@ -356,35 +454,27 @@ func (cn *Conn) StatsWithKey(key string) (stats map[string]string, err error) {
 		key: key,
 	}
 
-	cn.l.Lock()
-	defer cn.l.Unlock()
-
-	err = cn.send(m)
-	if err != nil {
-		return
-	}
-
-	// collect all statistics
-	stats = make(map[string]string)
-	for {
-		err = cn.recv(m)
-		// error or termination message
-		if err != nil || m.KeyLen == 0 {
-			return
+  allStats := make(map[string]mcStats)
+	for _, s := range c.servers {
+		if s.isAlive {
+			stats, err := s.performStats(m)
+			if err != nil {
+				return nil, err
+			}
+			allStats[s.address] = stats
 		}
-		stats[m.key] = m.val
 	}
 
-	return
+	return allStats, nil
 }
 
 // Stats returns some statistics about the memcached server.
-func (cn *Conn) Stats() (stats map[string]string, err error) {
-	return cn.StatsWithKey("")
+func (c *client) Stats() (stats map[string]mcStats, err error) {
+	return c.StatsWithKey("")
 }
 
 // StatsReset resets the statistics stored at the memcached server.
-func (cn *Conn) StatsReset() (err error) {
-	_, err = cn.StatsWithKey("reset")
+func (c *client) StatsReset() (err error) {
+	_, err = c.StatsWithKey("reset")
 	return err
 }

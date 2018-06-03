@@ -3,31 +3,28 @@ ifndef GO
 GO:=go
 endif
 
-.PHONY: all deps clean fmt vet lint help
+.PHONY: all clean fmt vet lint help
 
 all: build
 
-build: *.go
-	@$(GO) build
+build: src/mc/*.go
+	@GOPATH=$(CURDIR) $(GO) build mc
 
-deps:
-	git submodule update --init --recursive
-
-# Yes, this is a hack, but Go's packing is also just stupid.
-work-tree:
-	@if [ ! -e src ]; then \
-		ln -s vendor src; \
-	fi
-
-test: build work-tree
+test: build
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR) $(GO) test -test.short -v; ST=$?; \
+	@GOPATH=$(CURDIR) $(GO) test -test.short -v mc; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
-test-full: build work-tree
+test-full: build
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR) GO15VENDOREXPERIMENT=1 $(GO) test -v; ST=$?; \
+	@GOPATH=$(CURDIR) GO15VENDOREXPERIMENT=1 $(GO) test -v mc; ST=$?; \
+	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
+	@exit ${ST}
+
+bench: build
+	@memcached -p 11289 & echo $$! > test.pids
+	@GOPATH=$(CURDIR) $(GO) test -run "notests" -bench ".*" mc; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
@@ -48,7 +45,6 @@ lint:
 help:
 	@echo "Build Targets"
 	@echo "   build      - Build mc"
-	@echo "   deps       - Git checkout dependencies"
 	@echo "   test       - Quick test of mc (against memcached on port 11289)"
 	@echo "   test-full  - Longer test of mc (against memcached on port 11289)"
 	@echo "   clean      - Remove built sources"
@@ -56,4 +52,3 @@ help:
 	@echo "   vet        - Analyze the source code for potential errors"
 	@echo "   lint       - Analyze the source code for style mistakes"
 	@echo ""
-
