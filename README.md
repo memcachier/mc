@@ -5,6 +5,8 @@
 
 This is a (pure) Go client for [Memcached](http://memcached.org). It supports
 the binary Memcached protocol and SASL authentication. It's thread-safe.
+It allows connections to entire Memcached clusters and supports connection
+pools, timeouts, and failover.
 
 ## Install
 
@@ -16,26 +18,18 @@ the binary Memcached protocol and SASL authentication. It's thread-safe.
 
 		func main() {
 			// Error handling omitted for demo
-			cn, err := mc.Dial("tcp", "localhost:11211")
-			if err != nil {
-				...
-			}
 
 			// Only PLAIN SASL auth supported right now
-			// See: http://code.google.com/p/memcached/wiki/SASLHowto
-			err = cn.Auth("foo", "bar")
-			if err != nil {
-				...
-			}
-			
+			c := mc.NewMC("localhost:11211", "username", "password")
+			defer c.Quit()
 
-			val, cas, err = cn.Get("foo")
+			exp := 3600 // 2 hours
+			err = cn.Set("foo", "bar", flags, exp, cas)
 			if err != nil {
 				...
 			}
 
-			exp = 3600 // 2 hours
-			err = cn.Set("foo", "bar", cas, exp)
+			val, flags, cas, err = cn.Get("foo")
 			if err != nil {
 				...
 			}
@@ -48,10 +42,7 @@ the binary Memcached protocol and SASL authentication. It's thread-safe.
 
 ## Missing Feature
 
-There is nearly coverage of the Memcached protocol, but at the moment we only
-support a single Memcached server. Support for a Memcached cluster using a
-sharding / hashing method is still needed.
-
+There is nearly coverage of the Memcached protocol.
 The biggest missing protocol feature is support for `multi_get` and other
 batched operations.
 
@@ -60,7 +51,7 @@ There is also no support for asynchronous IO.
 ## Performance
 
 Right now we use a single per-connection mutex and don't support pipe-lining any
-operations.
+operations. There is however support for connection pools.
 
 ## Get involved!
 
@@ -80,6 +71,5 @@ This library is MIT-licensed.
 
 ## Authors
 
-This library is written and maintained by David Terei (<code@davidterei.com>).
+This library is written and maintained by MemCachier.
 It was originally written by [Blake Mizerany](https://github.com/bmizerany/mc).
-
