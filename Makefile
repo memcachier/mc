@@ -7,24 +7,24 @@ endif
 
 all: build
 
-build: src/mc/*.go
-	@GOPATH=$(CURDIR) $(GO) build mc
+build: *.go
+	$(GO) build
 
 test: build
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR) $(GO) test -test.short -v mc; ST=$?; \
+	@GOPATH=$(CURDIR) $(GO) test -test.short -v; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
 test-full: build
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR) GO15VENDOREXPERIMENT=1 $(GO) test -v mc; ST=$?; \
+	@GOPATH=$(CURDIR) GO15VENDOREXPERIMENT=1 $(GO) test -v; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
 bench: build
 	@memcached -p 11289 & echo $$! > test.pids
-	@GOPATH=$(CURDIR) $(GO) test -run "notests" -bench ".*" mc; ST=$?; \
+	@GOPATH=$(CURDIR) $(GO) test -run "notests" -bench ".*"; ST=$?; \
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
