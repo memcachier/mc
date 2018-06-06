@@ -9,10 +9,10 @@ import (
 // config holds the Memcache client configuration. Use DefaultConfig to get
 // an initialized version.
 type config struct {
-	Hasher             hasher
-	Retries            int
-	RetryDelay         time.Duration
-	Failover           bool
+	Hasher     hasher
+	Retries    int
+	RetryDelay time.Duration
+	Failover   bool
 	// ConnectionTimeout is currently used to timeout getting connections from
 	// pool, as a sending deadline and as a reading deadline. Worst case this
 	// means a request can take 3 times the ConnectionTimeout.
@@ -41,17 +41,17 @@ The default values currently are:
 		TcpNoDelay:         true,
 	}
 */
-func DefaultConfig() * config {
+func DefaultConfig() *config {
 	return &config{
-		Hasher: NewModuloHasher(),
-		Retries: 2,
-		RetryDelay: 200 * time.Millisecond,
-		Failover: true,
-		ConnectionTimeout: 2 * time.Second,
-		DownRetryDelay: 60 * time.Second,
-		PoolSize: 1,
-		TcpKeepAlive: true,
+		Hasher:             NewModuloHasher(),
+		Retries:            2,
+		RetryDelay:         200 * time.Millisecond,
+		Failover:           true,
+		ConnectionTimeout:  2 * time.Second,
+		DownRetryDelay:     60 * time.Second,
+		PoolSize:           1,
+		TcpKeepAlive:       true,
 		TcpKeepAlivePeriod: 60 * time.Second,
-		TcpNoDelay: true,
+		TcpNoDelay:         true,
 	}
 }

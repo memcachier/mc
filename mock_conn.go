@@ -21,7 +21,7 @@ type mockConn struct {
 // second request succeeds. The address has the following structure:
 // <id>-<failure-pattern>:<port> (port gets automatically inserted).
 func newMockConn(address, username, password string, config *config) mcConn {
-	id_mod := strings.Split(strings.Split(address, ":")[0],"-")
+	id_mod := strings.Split(strings.Split(address, ":")[0], "-")
 	id := id_mod[0]
 	mod := 1
 	if len(id_mod) > 1 {
@@ -33,7 +33,7 @@ func newMockConn(address, username, password string, config *config) mcConn {
 	}
 
 	mockConn := &mockConn{
-		serverId: id,
+		serverId:   id,
 		successMod: mod,
 	}
 	return mockConn
@@ -41,7 +41,7 @@ func newMockConn(address, username, password string, config *config) mcConn {
 
 func (mc *mockConn) perform(m *msg) error {
 	mc.counter++
-	if mc.counter % mc.successMod == 0 {
+	if mc.counter%mc.successMod == 0 {
 		m.val = m.val + m.key + "," + mc.serverId + "," + strconv.Itoa(mc.counter)
 		return nil
 	}

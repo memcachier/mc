@@ -12,7 +12,7 @@ func TestRetrySuccess(t *testing.T) {
 		config := DefaultConfig()
 		config.Retries = i
 		i_str := strconv.Itoa(i)
-		c := newMockableMC("s1-" + i_str, "", "", config, newMockConn)
+		c := newMockableMC("s1-"+i_str, "", "", config, newMockConn)
 
 		val, flags, cs, err := c.Get("k1")
 		if err != nil {
@@ -30,9 +30,9 @@ func TestRetrySuccess(t *testing.T) {
 func TestRetryFailure(t *testing.T) {
 	for i := 2; i < 4; i++ {
 		config := DefaultConfig()
-		config.Retries = i-1
+		config.Retries = i - 1
 		i_str := strconv.Itoa(i)
-		c := newMockableMC("s1-" + i_str, "", "", config, newMockConn)
+		c := newMockableMC("s1-"+i_str, "", "", config, newMockConn)
 
 		val, flags, cs, err := c.Get("k1")
 		if err == nil {
@@ -49,7 +49,7 @@ func TestFailoverSuccess(t *testing.T) {
 	c := newMockableMC("s1-3,s2-1", "", "", config, newMockConn)
 
 	key := "k2" // this key hashes to s1
-  res := [3]string{key+",s2,1", key+",s2,2", key+",s1,3"}
+	res := [3]string{key + ",s2,1", key + ",s2,2", key + ",s1,3"}
 	// Expected behavior
 	// 1st loop: try to get twice from s1, fails, marks s1 down, tries s2, succeeds
 	// 2nd loop: get from s2 since s1 is still down, succeeds

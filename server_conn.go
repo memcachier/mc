@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"time"
 	"strings"
+	"time"
 )
 
 type mcConn interface {
@@ -20,7 +20,7 @@ type mcConn interface {
 	restore(m *msg)
 }
 
-type connGen func (address, username, password string, config *config) mcConn
+type connGen func(address, username, password string, config *config) mcConn
 
 // serverConn is a connection to a memcache server.
 type serverConn struct {
@@ -36,11 +36,11 @@ type serverConn struct {
 
 func newServerConn(address, username, password string, config *config) mcConn {
 	serverConn := &serverConn{
-		address: address,
+		address:  address,
 		username: username,
 		password: password,
-		config: config,
-		buf: new(bytes.Buffer),
+		config:   config,
+		buf:      new(bytes.Buffer),
 	}
 	return serverConn
 }
@@ -281,7 +281,7 @@ func sizeOfExtras(extras []interface{}) (l uint8) {
 // resetConn destroy connection if a network error ocurred. serverConn will
 // reconnect on next usage.
 func (sc *serverConn) resetConn(err error) {
-	if  err.(*Error).Status == StatusNetworkError {
+	if err.(*Error).Status == StatusNetworkError {
 		sc.conn.Close()
 		sc.conn = nil
 	}
@@ -317,7 +317,7 @@ func (sc *serverConn) restore(m *msg) {
 	restoreMsg(m, &sc.backupMsg)
 }
 
-func restoreMsg(m *msg, backupMsg *msg){
+func restoreMsg(m *msg, backupMsg *msg) {
 	m.key = backupMsg.key
 	m.val = backupMsg.val
 	m.header.Magic = backupMsg.header.Magic

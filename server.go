@@ -19,19 +19,18 @@ type server struct {
 	lock    sync.Mutex
 }
 
-
 func newServer(address, username, password string, config *config, newMcConn connGen) *server {
 	var hostport string
-  host, port, err := net.SplitHostPort(address)
-  if err == nil {
-    hostport = net.JoinHostPort(host, port)
-  } else {
-    hostport = net.JoinHostPort(address, "11211")
-  }
+	host, port, err := net.SplitHostPort(address)
+	if err == nil {
+		hostport = net.JoinHostPort(host, port)
+	} else {
+		hostport = net.JoinHostPort(address, "11211")
+	}
 	server := &server{
 		address: hostport,
-		config: config,
-		pool: make(chan mcConn, config.PoolSize),
+		config:  config,
+		pool:    make(chan mcConn, config.PoolSize),
 		isAlive: true,
 	}
 
@@ -42,13 +41,12 @@ func newServer(address, username, password string, config *config, newMcConn con
 	return server
 }
 
-
 func (s *server) perform(m *msg) error {
 	var err error
 	for i := 0; ; {
 		timeout := time.Tick(s.config.ConnectionTimeout)
-	  select {
-	  case c := <- s.pool:
+		select {
+		case c := <-s.pool:
 			// NOTE: this serverConn is no longer available in the pool (equivalent to locking)
 			if c == nil {
 				return &Error{StatusUnknownError, "Client is closed (did you call Quit?)", nil}
@@ -79,12 +77,12 @@ func (s *server) perform(m *msg) error {
 			} else {
 				return err
 			}
-	  case <-timeout:
+		case <-timeout:
 			// do not retry
 			return &Error{StatusUnknownError,
-										"Timed out while waiting for connection from pool. " +
-										"Maybe increase your pool size?",
-										nil}
+				"Timed out while waiting for connection from pool. " +
+					"Maybe increase your pool size?",
+				nil}
 		}
 	}
 	// return err
@@ -93,7 +91,7 @@ func (s *server) perform(m *msg) error {
 func (s *server) performStats(m *msg) (mcStats, error) {
 	timeout := time.Tick(s.config.ConnectionTimeout)
 	select {
-	case c := <- s.pool:
+	case c := <-s.pool:
 		// NOTE: this serverConn is no longer available in the pool (equivalent to locking)
 		if c == nil {
 			return nil, &Error{StatusUnknownError, "Client is closed (did you call Quit?)", nil}
@@ -106,15 +104,15 @@ func (s *server) performStats(m *msg) (mcStats, error) {
 	case <-timeout:
 		// do not retry
 		return nil, &Error{StatusUnknownError,
-											 "Timed out while waiting for connection from pool. " +
-											 "Maybe increase your pool size?",
-											 nil}
+			"Timed out while waiting for connection from pool. " +
+				"Maybe increase your pool size?",
+			nil}
 	}
 }
 
 func (s *server) quit(m *msg) {
 	for i := 0; i < s.config.PoolSize; i++ {
-		c := <- s.pool
+		c := <-s.pool
 		if c == nil {
 			// Do not double quit
 			return
@@ -127,7 +125,7 @@ func (s *server) quit(m *msg) {
 func (s *server) changeAlive(alive bool) bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if s.isAlive != alive{
+	if s.isAlive != alive {
 		s.isAlive = alive
 		return true
 	}

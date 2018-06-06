@@ -10,14 +10,13 @@ import (
 )
 
 const (
-	mcAddr    = "localhost:11289"
-	badAddr   = "127.0.0.2:23111"
-	user      = "user-1"
-	pass      = "pass"
+	mcAddr  = "localhost:11289"
+	badAddr = "127.0.0.2:23111"
+	user    = "user-1"
+	pass    = "pass"
 )
 
 var mcNil error
-
 
 // Some basic tests that functions work
 func TestMCSimple(t *testing.T) {
@@ -1586,8 +1585,8 @@ func TestStatsReset(t *testing.T) {
 		errNum, stats[mcAddr])
 
 	// make sure they incremented by one
-	assertEqualf(t, misses1 + 1, misses2,
-	"miss stats didn't change as expected! (%d vs %d)", misses1, misses2)
+	assertEqualf(t, misses1+1, misses2,
+		"miss stats didn't change as expected! (%d vs %d)", misses1, misses2)
 
 	// reset stats
 	c.StatsReset()

@@ -56,11 +56,10 @@ import (
 // * Error margin is always under time, not over. E.g., a expiration of 4
 //   seconds will actually expire somewhere in the range of (3,4) seconds.
 
-
 // Client represents a memcached client that is connected to a list of servers
 type Client struct {
-	servers     []*server
-	config      *config
+	servers []*server
+	config  *config
 }
 
 // NewMC creates a new client with the default configuration. For the default
@@ -124,8 +123,8 @@ func (c *Client) getServer(key string) (*server, error) {
 		return nil, err
 	}
 	nServers := uint(len(c.servers))
-	for i:=uint(0); i<nServers; i++ {
-		s := c.servers[idx + i % nServers]
+	for i := uint(0); i < nServers; i++ {
+		s := c.servers[idx+i%nServers]
 		if s.isAlive {
 			return s, nil
 		}
@@ -424,7 +423,7 @@ func (c *Client) Version() (vers map[string]string, err error) {
 }
 
 // Quit closes the connection with memcache server (nicely).
-func (c *Client) Quit(){
+func (c *Client) Quit() {
 	// Variants: Quit [Q]
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, value, extras
@@ -450,11 +449,11 @@ func (c *Client) StatsWithKey(key string) (map[string]mcStats, error) {
 	m := &msg{
 		header: header{
 			Op: opStat,
-	 	},
+		},
 		key: key,
 	}
 
-  allStats := make(map[string]mcStats)
+	allStats := make(map[string]mcStats)
 	for _, s := range c.servers {
 		if s.isAlive {
 			stats, err := s.performStats(m)
