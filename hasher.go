@@ -17,7 +17,7 @@ type moduloHasher struct {
 	h32      hash.Hash32
 }
 
-func newModuloHasher() hasher {
+func NewModuloHasher() hasher {
 	var h hasher = &moduloHasher{h32: fnv.New32a()}
 	return h
 }

@@ -27,7 +27,7 @@ type config struct {
 // DefaultConfig returns a config object populated with the default values.
 func DefaultConfig() * config {
 	return &config{
-		Hasher: newModuloHasher(),
+		Hasher: NewModuloHasher(),
 		Retries: 2,
 		RetryDelay: 200 * time.Millisecond,
 		Failover: true,
