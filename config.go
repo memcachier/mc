@@ -24,7 +24,23 @@ type config struct {
 	TcpNoDelay         bool
 }
 
-// DefaultConfig returns a config object populated with the default values.
+/*
+DefaultConfig returns a config object populated with the default values.
+The default values currently are:
+
+	config{
+		Hasher:             NewModuloHasher(),
+		Retries:            2,
+		RetryDelay:         200 * time.Millisecond,
+		Failover:           true,
+		ConnectionTimeout:  2 * time.Second,
+		DownRetryDelay:     60 * time.Second,
+		PoolSize:           1,
+		TcpKeepAlive:       true,
+		TcpKeepAlivePeriod: 60 * time.Second,
+		TcpNoDelay:         true,
+	}
+*/
 func DefaultConfig() * config {
 	return &config{
 		Hasher: NewModuloHasher(),

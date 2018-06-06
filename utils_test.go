@@ -6,7 +6,7 @@ import (
 )
 
 // start connection
-func testInit(t *testing.T) *client {
+func testInit(t *testing.T) *Client {
 	c := NewMC(mcAddr, user, pass)
 	err := c.Flush(0)
 	assertEqualf(t, nil, err, "unexpected error during initial flush: %v", err)

@@ -57,27 +57,27 @@ import (
 //   seconds will actually expire somewhere in the range of (3,4) seconds.
 
 
-// client represents a memcached client that is connected to a list of servers
-type client struct {
+// Client represents a memcached client that is connected to a list of servers
+type Client struct {
 	servers     []*server
 	config      *config
 }
 
 // NewMC creates a new client with the default configuration. For the default
 // configuration see DefaultConfig.
-func NewMC(servers, username, password string) *client {
+func NewMC(servers, username, password string) *Client {
 	return NewMCwithConfig(servers, username, password, DefaultConfig())
 }
 
 // NewMCwithConfig creates a new client for a given configuration
-func NewMCwithConfig(servers, username, password string, config *config) *client {
+func NewMCwithConfig(servers, username, password string, config *config) *Client {
 	return newMockableMC(servers, username, password, config, newServerConn)
 }
 
 // newMockableMC creates a new client for testing that allows to mock the server
 // connection
-func newMockableMC(servers, username, password string, config *config, newMcConn connGen) *client {
-	client := &client{config: config}
+func newMockableMC(servers, username, password string, config *config, newMcConn connGen) *Client {
+	client := &Client{config: config}
 
 	s := func(r rune) bool {
 		return r == ',' || r == ';' || r == ' '
@@ -93,7 +93,7 @@ func newMockableMC(servers, username, password string, config *config, newMcConn
 	return client
 }
 
-func (c *client) perform(m *msg) error {
+func (c *Client) perform(m *msg) error {
 	// failover on error
 	for {
 		s, err := c.getServer(m.key)
@@ -113,12 +113,12 @@ func (c *client) perform(m *msg) error {
 	return nil
 }
 
-func (c *client) wakeUp(s *server) {
+func (c *Client) wakeUp(s *server) {
 	time.Sleep(c.config.DownRetryDelay)
 	s.changeAlive(true)
 }
 
-func (c *client) getServer(key string) (*server, error) {
+func (c *Client) getServer(key string) (*server, error) {
 	idx, err := c.config.Hasher.getServerIndex(key)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func (c *client) getServer(key string) (*server, error) {
 }
 
 // Get retrieves a value from the cache.
-func (c *client) Get(key string) (val string, flags uint32, cas uint64, err error) {
+func (c *Client) Get(key string) (val string, flags uint32, cas uint64, err error) {
 	// Variants: [R] Get [Q, K, KQ]
 	// Request : MUST key; MUST NOT value, extras
 	// Response: MAY key, value, extras ([0..3] flags)
@@ -147,7 +147,7 @@ func (c *client) Get(key string) (val string, flags uint32, cas uint64, err erro
 // NOTE: GET doesn't actually care about CAS, but we want this internally for
 // testing purposes, to be able to test that a memcache server obeys the proper
 // semantics of ignoring CAS with GETs.
-func (c *client) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err error) {
+func (c *Client) getCAS(key string, ocas uint64) (val string, flags uint32, cas uint64, err error) {
 	m := &msg{
 		header: header{
 			Op:  opGet,
@@ -163,7 +163,7 @@ func (c *client) getCAS(key string, ocas uint64) (val string, flags uint32, cas 
 
 // GAT (get and touch) retrieves the value associated with the key and updates
 // its expiration time.
-func (c *client) GAT(key string, exp uint32) (val string, flags uint32, cas uint64, err error) {
+func (c *Client) GAT(key string, exp uint32) (val string, flags uint32, cas uint64, err error) {
 	// Variants: GAT [Q, K, KQ]
 	// Request : MUST key, extras; MUST NOT value
 	// Response: MAY key, value, extras ([0..3] flags)
@@ -181,7 +181,7 @@ func (c *client) GAT(key string, exp uint32) (val string, flags uint32, cas uint
 }
 
 // Touch updates the expiration time on a key/value pair in the cache.
-func (c *client) Touch(key string, exp uint32) (cas uint64, err error) {
+func (c *Client) Touch(key string, exp uint32) (cas uint64, err error) {
 	// Variants: Touch
 	// Request : MUST key, extras; MUST NOT value
 	// Response: MUST NOT key, value, extras
@@ -198,27 +198,27 @@ func (c *client) Touch(key string, exp uint32) (cas uint64, err error) {
 }
 
 // Set sets a key/value pair in the cache.
-func (c *client) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
+func (c *Client) Set(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Set [Q]
 	return c.setGeneric(opSet, key, val, ocas, flags, exp)
 }
 
 // Replace replaces an existing key/value in the cache. Fails if key doesn't
 // already exist in cache.
-func (c *client) Replace(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
+func (c *Client) Replace(key, val string, flags, exp uint32, ocas uint64) (cas uint64, err error) {
 	// Variants: Replace [Q]
 	return c.setGeneric(opReplace, key, val, ocas, flags, exp)
 }
 
 // Add adds a new key/value to the cache. Fails if the key already exists in the
 // cache.
-func (c *client) Add(key, val string, flags, exp uint32) (cas uint64, err error) {
+func (c *Client) Add(key, val string, flags, exp uint32) (cas uint64, err error) {
 	// Variants: Add [Q]
 	return c.setGeneric(opAdd, key, val, 0, flags, exp)
 }
 
 // Set/Add/Replace a key/value pair in the cache.
-func (c *client) setGeneric(op opCode, key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
+func (c *Client) setGeneric(op opCode, key, val string, ocas uint64, flags, exp uint32) (cas uint64, err error) {
 	// Request : MUST key, value, extras ([0..3] flags, [4..7] expiration)
 	// Response: MUST NOT key, value, extras
 	// CAS: If a CAS is specified (non-zero), all sets only succeed if the key
@@ -240,18 +240,18 @@ func (c *client) setGeneric(op opCode, key, val string, ocas uint64, flags, exp 
 // Incr increments a value in the cache. The value must be an unsigned 64bit
 // integer stored as an ASCII string. It will wrap when incremented outside the
 // range.
-func (c *client) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+func (c *Client) Incr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
 	return c.incrdecr(opIncrement, key, delta, init, exp, ocas)
 }
 
 // Decr decrements a value in the cache. The value must be an unsigned 64bit
 // integer stored as an ASCII string. It can't be decremented below 0.
-func (c *client) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+func (c *Client) Decr(key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
 	return c.incrdecr(opDecrement, key, delta, init, exp, ocas)
 }
 
 // Incr/Decr a key/value pair in the cache.
-func (c *client) incrdecr(op opCode, key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
+func (c *Client) incrdecr(op opCode, key string, delta, init uint64, exp uint32, ocas uint64) (n, cas uint64, err error) {
 	// Variants: [R] Incr [Q], [R] Decr [Q]
 	// Request : MUST key, extras; MUST NOT value
 	//   Extras: [ 0.. 7] Amount to add/sub
@@ -292,7 +292,7 @@ func readInt(b string) uint64 {
 
 // Append appends the value to the existing value for the key specified. An
 // error is thrown if the key doesn't exist.
-func (c *client) Append(key, val string, ocas uint64) (cas uint64, err error) {
+func (c *Client) Append(key, val string, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Append [Q]
 	// Request : MUST key, value; MUST NOT extras
 	// Response: MUST NOT key, value, extras
@@ -311,7 +311,7 @@ func (c *client) Append(key, val string, ocas uint64) (cas uint64, err error) {
 
 // Prepend prepends the value to the existing value for the key specified. An
 // error is thrown if the key doesn't exist.
-func (c *client) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
+func (c *Client) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
 	// Variants: [R] Append [Q]
 	// Request : MUST key, value; MUST NOT extras
 	// Response: MUST NOT key, value, extras
@@ -329,13 +329,13 @@ func (c *client) Prepend(key, val string, ocas uint64) (cas uint64, err error) {
 }
 
 // Del deletes a key/value from the cache.
-func (c *client) Del(key string) (err error) {
+func (c *Client) Del(key string) (err error) {
 	return c.DelCAS(key, 0)
 }
 
 // DelCAS deletes a key/value from the cache but only if the CAS specified
 // matches the CAS in the cache.
-func (c *client) DelCAS(key string, cas uint64) (err error) {
+func (c *Client) DelCAS(key string, cas uint64) (err error) {
 	// Variants: [R] Del [Q]
 	// Request : MUST key; MUST NOT value, extras
 	// Response: MUST NOT key, value, extras
@@ -354,7 +354,7 @@ func (c *client) DelCAS(key string, cas uint64) (err error) {
 // typically free memory on a memcache server (doing so compromises the O(1)
 // nature of memcache). Instead nearly all servers do lazy expiration, where
 // they don't free memory but won't return any keys to you that have expired.
-func (c *client) Flush(when uint32) (err error) {
+func (c *Client) Flush(when uint32) (err error) {
 	// Variants: Flush [Q]
 	// Request : MUST NOT key, value; MAY extras ([0..3] expiration)
 	// Response: MUST NOT key, value, extras
@@ -379,7 +379,7 @@ func (c *client) Flush(when uint32) (err error) {
 
 // NoOp sends a No-Op message to the memcache server. This can be used as a
 // heartbeat for the server to check it's functioning fine still.
-func (c *client) NoOp() (err error) {
+func (c *Client) NoOp() (err error) {
 	// Variants: NoOp
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, value, extras
@@ -398,7 +398,7 @@ func (c *client) NoOp() (err error) {
 }
 
 // Version gets the version of the memcached server connected to.
-func (c *client) Version() (vers map[string]string, err error) {
+func (c *Client) Version() (vers map[string]string, err error) {
 	// Variants: Version
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, extras; MUST value
@@ -424,7 +424,7 @@ func (c *client) Version() (vers map[string]string, err error) {
 }
 
 // Quit closes the connection with memcache server (nicely).
-func (c *client) Quit(){
+func (c *Client) Quit(){
 	// Variants: Quit [Q]
 	// Request : MUST NOT key, value, extras
 	// Response: MUST NOT key, value, extras
@@ -442,7 +442,7 @@ func (c *client) Quit(){
 // StatsWithKey returns some statistics about the memcached server. It supports
 // sending across a key to the server to select which statistics should be
 // returned.
-func (c *client) StatsWithKey(key string) (map[string]mcStats, error) {
+func (c *Client) StatsWithKey(key string) (map[string]mcStats, error) {
 	// Variants: Stats
 	// Request : MAY HAVE key, MUST NOT value, extra
 	// Response: Serries of responses that MUST HAVE key, value; followed by one
@@ -469,12 +469,12 @@ func (c *client) StatsWithKey(key string) (map[string]mcStats, error) {
 }
 
 // Stats returns some statistics about the memcached server.
-func (c *client) Stats() (stats map[string]mcStats, err error) {
+func (c *Client) Stats() (stats map[string]mcStats, err error) {
 	return c.StatsWithKey("")
 }
 
 // StatsReset resets the statistics stored at the memcached server.
-func (c *client) StatsReset() (err error) {
+func (c *Client) StatsReset() (err error) {
 	_, err = c.StatsWithKey("reset")
 	return err
 }

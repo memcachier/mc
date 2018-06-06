@@ -1267,7 +1267,7 @@ func TestGAT(t *testing.T) {
 }
 
 // Some basic tests that functions work
-func testThread(t *testing.T, c *client, id int, ch chan bool) {
+func testThread(t *testing.T, c *Client, id int, ch chan bool) {
 	const (
 		Key1 = "foo"
 		Val1 = "boo"
@@ -1326,7 +1326,7 @@ func TestThreaded(t *testing.T) {
 	}
 }
 
-func testAdvGet(t *testing.T, c *client, op opCode, key string, expKey string, opq uint32) *msg {
+func testAdvGet(t *testing.T, c *Client, op opCode, key string, expKey string, opq uint32) *msg {
 	var flags uint32
 
 	m := &msg{
@@ -1396,7 +1396,7 @@ func TestGetExotic(t *testing.T) {
 	testAdvGet(t, c, opGetKQ, Key, Key, 0xf0f0f0f0)
 }
 
-func testAdvGat(t *testing.T, c *client, op opCode, key string, expKey string, opq uint32) *msg {
+func testAdvGat(t *testing.T, c *Client, op opCode, key string, expKey string, opq uint32) *msg {
 	var exp uint32
 	var flags uint32
 

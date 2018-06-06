@@ -24,7 +24,7 @@ pools, timeouts, and failover.
 			defer c.Quit()
 
 			exp := 3600 // 2 hours
-			err = cn.Set("foo", "bar", flags, exp, cas)
+			cas, err = cn.Set("foo", "bar", flags, exp, cas)
 			if err != nil {
 				...
 			}
@@ -51,7 +51,8 @@ There is also no support for asynchronous IO.
 ## Performance
 
 Right now we use a single per-connection mutex and don't support pipe-lining any
-operations. There is however support for connection pools.
+operations. There is however support for connection pools which should make up
+for it.
 
 ## Get involved!
 
