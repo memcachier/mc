@@ -11,7 +11,7 @@ import (
 // server represents a server and contains all connections to that server
 type server struct {
 	address string
-	config  *config
+	config  *Config
 	// NOTE: organizing the pool as a chan makes the usage of the containing
 	// connections treadsafe
 	pool    chan mcConn
@@ -19,7 +19,7 @@ type server struct {
 	lock    sync.Mutex
 }
 
-func newServer(address, username, password string, config *config, newMcConn connGen) *server {
+func newServer(address, username, password string, config *Config, newMcConn connGen) *server {
 	var hostport string
 	host, port, err := net.SplitHostPort(address)
 	if err == nil {

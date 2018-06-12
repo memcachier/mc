@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// config holds the Memcache client configuration. Use DefaultConfig to get
+// Config holds the Memcache client configuration. Use DefaultConfig to get
 // an initialized version.
-type config struct {
+type Config struct {
 	Hasher     hasher
 	Retries    int
 	RetryDelay time.Duration
@@ -41,8 +41,8 @@ The default values currently are:
 		TcpNoDelay:         true,
 	}
 */
-func DefaultConfig() *config {
-	return &config{
+func DefaultConfig() *Config {
+	return &Config{
 		Hasher:             NewModuloHasher(),
 		Retries:            2,
 		RetryDelay:         200 * time.Millisecond,

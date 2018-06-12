@@ -59,7 +59,7 @@ import (
 // Client represents a memcached client that is connected to a list of servers
 type Client struct {
 	servers []*server
-	config  *config
+	config  *Config
 }
 
 // NewMC creates a new client with the default configuration. For the default
@@ -69,13 +69,13 @@ func NewMC(servers, username, password string) *Client {
 }
 
 // NewMCwithConfig creates a new client for a given configuration
-func NewMCwithConfig(servers, username, password string, config *config) *Client {
+func NewMCwithConfig(servers, username, password string, config *Config) *Client {
 	return newMockableMC(servers, username, password, config, newServerConn)
 }
 
 // newMockableMC creates a new client for testing that allows to mock the server
 // connection
-func newMockableMC(servers, username, password string, config *config, newMcConn connGen) *Client {
+func newMockableMC(servers, username, password string, config *Config, newMcConn connGen) *Client {
 	client := &Client{config: config}
 
 	s := func(r rune) bool {

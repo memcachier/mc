@@ -20,21 +20,21 @@ type mcConn interface {
 	restore(m *msg)
 }
 
-type connGen func(address, username, password string, config *config) mcConn
+type connGen func(address, username, password string, config *Config) mcConn
 
 // serverConn is a connection to a memcache server.
 type serverConn struct {
 	address   string
 	username  string
 	password  string
-	config    *config
+	config    *Config
 	conn      net.Conn
 	buf       *bytes.Buffer
 	opq       uint32
 	backupMsg msg
 }
 
-func newServerConn(address, username, password string, config *config) mcConn {
+func newServerConn(address, username, password string, config *Config) mcConn {
 	serverConn := &serverConn{
 		address:  address,
 		username: username,
