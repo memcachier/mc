@@ -10,35 +10,39 @@ pools, timeouts, and failover.
 
 ## Install
 
-		$ go get github.com/memcachier/mc
+```
+$ go get github.com/memcachier/mc
+```
 
 ## Use
 
-		import "github.com/memcachier/mc"
+```go
+import "github.com/memcachier/mc"
 
-		func main() {
-			// Error handling omitted for demo
+func main() {
+	// Error handling omitted for demo
 
-			// Only PLAIN SASL auth supported right now
-			c := mc.NewMC("localhost:11211", "username", "password")
-			defer c.Quit()
+	// Only PLAIN SASL auth supported right now
+	c := mc.NewMC("localhost:11211", "username", "password")
+	defer c.Quit()
 
-			exp := 3600 // 2 hours
-			cas, err = cn.Set("foo", "bar", flags, exp, cas)
-			if err != nil {
-				...
-			}
+	exp := 3600 // 2 hours
+	cas, err = cn.Set("foo", "bar", flags, exp, cas)
+	if err != nil {
+		...
+	}
 
-			val, flags, cas, err = cn.Get("foo")
-			if err != nil {
-				...
-			}
+	val, flags, cas, err = cn.Get("foo")
+	if err != nil {
+		...
+	}
 
-			err = cn.Del("foo")
-			if err != nil {
-				...
-			}
-		}
+	err = cn.Del("foo")
+	if err != nil {
+		...
+	}
+}
+```
 
 ## Missing Feature
 
