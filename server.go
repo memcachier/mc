@@ -44,7 +44,7 @@ func newServer(address, username, password string, config *Config, newMcConn con
 func (s *server) perform(m *msg) error {
 	var err error
 	for i := 0; ; {
-		timeout := time.Tick(s.config.ConnectionTimeout)
+		timeout := time.After(s.config.ConnectionTimeout)
 		select {
 		case c := <-s.pool:
 			// NOTE: this serverConn is no longer available in the pool (equivalent to locking)
@@ -89,7 +89,7 @@ func (s *server) perform(m *msg) error {
 }
 
 func (s *server) performStats(m *msg) (mcStats, error) {
-	timeout := time.Tick(s.config.ConnectionTimeout)
+	timeout := time.After(s.config.ConnectionTimeout)
 	select {
 	case c := <-s.pool:
 		// NOTE: this serverConn is no longer available in the pool (equivalent to locking)
