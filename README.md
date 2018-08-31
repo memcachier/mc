@@ -27,17 +27,17 @@ func main() {
 	defer c.Quit()
 
 	exp := 3600 // 2 hours
-	cas, err = cn.Set("foo", "bar", flags, exp, cas)
+	cas, err = c.Set("foo", "bar", flags, exp, cas)
 	if err != nil {
 		...
 	}
 
-	val, flags, cas, err = cn.Get("foo")
+	val, flags, cas, err = c.Get("foo")
 	if err != nil {
 		...
 	}
 
-	err = cn.Del("foo")
+	err = c.Del("foo")
 	if err != nil {
 		...
 	}
