@@ -441,7 +441,7 @@ func (c *Client) Quit() {
 // StatsWithKey returns some statistics about the memcached server. It supports
 // sending across a key to the server to select which statistics should be
 // returned.
-func (c *Client) StatsWithKey(key string) (map[string]mcStats, error) {
+func (c *Client) StatsWithKey(key string) (map[string]McStats, error) {
 	// Variants: Stats
 	// Request : MAY HAVE key, MUST NOT value, extra
 	// Response: Serries of responses that MUST HAVE key, value; followed by one
@@ -453,7 +453,7 @@ func (c *Client) StatsWithKey(key string) (map[string]mcStats, error) {
 		key: key,
 	}
 
-	allStats := make(map[string]mcStats)
+	allStats := make(map[string]McStats)
 	for _, s := range c.servers {
 		if s.isAlive {
 			stats, err := s.performStats(m)
@@ -468,7 +468,7 @@ func (c *Client) StatsWithKey(key string) (map[string]mcStats, error) {
 }
 
 // Stats returns some statistics about the memcached server.
-func (c *Client) Stats() (stats map[string]mcStats, err error) {
+func (c *Client) Stats() (stats map[string]McStats, err error) {
 	return c.StatsWithKey("")
 }
 

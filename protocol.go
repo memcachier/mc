@@ -176,4 +176,4 @@ type msg struct {
 }
 
 // Memcache stats
-type mcStats map[string]string
+type McStats map[string]string

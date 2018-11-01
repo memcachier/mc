@@ -48,7 +48,7 @@ func (mc *mockConn) perform(m *msg) error {
 	return &Error{StatusNetworkError, "Mock network error", nil}
 }
 
-func (mc *mockConn) performStats(m *msg) (mcStats, error) {
+func (mc *mockConn) performStats(m *msg) (McStats, error) {
 	return nil, nil
 }
 

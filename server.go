@@ -88,7 +88,7 @@ func (s *server) perform(m *msg) error {
 	// return err
 }
 
-func (s *server) performStats(m *msg) (mcStats, error) {
+func (s *server) performStats(m *msg) (McStats, error) {
 	timeout := time.After(s.config.ConnectionTimeout)
 	select {
 	case c := <-s.pool:
