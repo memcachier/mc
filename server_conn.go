@@ -14,7 +14,7 @@ import (
 
 type mcConn interface {
 	perform(m *msg) error
-	performStats(m *msg) (mcStats, error)
+	performStats(m *msg) (McStats, error)
 	quit(m *msg)
 	backup(m *msg)
 	restore(m *msg)
@@ -56,7 +56,7 @@ func (sc *serverConn) perform(m *msg) error {
 	return sc.sendRecv(m)
 }
 
-func (sc *serverConn) performStats(m *msg) (mcStats, error) {
+func (sc *serverConn) performStats(m *msg) (McStats, error) {
 	// lazy connection
 	if sc.conn == nil {
 		err := sc.connect()
@@ -160,7 +160,7 @@ func (sc *serverConn) sendRecv(m *msg) error {
 }
 
 // sendRecvStats
-func (sc *serverConn) sendRecvStats(m *msg) (stats mcStats, err error) {
+func (sc *serverConn) sendRecvStats(m *msg) (stats McStats, err error) {
 	err = sc.send(m)
 	if err != nil {
 		sc.resetConn(err)
