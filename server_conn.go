@@ -81,7 +81,6 @@ func (sc *serverConn) quit(m *msg) {
 }
 
 func (sc *serverConn) connect() error {
-	fmt.Printf("address = %s, scheme = %s\n", sc.address, sc.scheme)
 	c, err := net.DialTimeout(sc.scheme, sc.address, sc.config.ConnectionTimeout)
 	if err != nil {
 		return wrapError(StatusNetworkError, err)
