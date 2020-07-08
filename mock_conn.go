@@ -20,7 +20,7 @@ type mockConn struct {
 // of an integer that defines which requests will succeed, e.g. 2 means every
 // second request succeeds. The address has the following structure:
 // <id>-<failure-pattern>:<port> (port gets automatically inserted).
-func newMockConn(address, username, password string, config *Config) mcConn {
+func newMockConn(address, scheme, username, password string, config *Config) mcConn {
 	id_mod := strings.Split(strings.Split(address, ":")[0], "-")
 	id := id_mod[0]
 	mod := 1

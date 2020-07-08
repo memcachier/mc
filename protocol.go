@@ -168,7 +168,7 @@ type msg struct {
 	iextras []interface{} // [24..(m-1)] Command specific extras (In)
 
 	// Idea of this is we can pass in pointers to values that should appear in the
-	// response extras in this field and the generic send/recieve code can handle.
+	// response extras in this field and the generic send/receive code can handle.
 	oextras []interface{} // [24..(m-1)] Command specifc extras (Out)
 
 	key string // [m..(n-1)] Key (as needed, length in header)

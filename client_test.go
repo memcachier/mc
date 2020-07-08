@@ -367,7 +367,7 @@ func TestIncrDecrNonNumeric(t *testing.T) {
 	const (
 		Key1          = "n"
 		NStart uint64 = 10
-		NVal          = "11211"
+		NVal          = defaultPort
 		Val           = "nup"
 	)
 
@@ -395,7 +395,7 @@ func TestIncrDecr(t *testing.T) {
 	const (
 		Key1          = "n"
 		NStart uint64 = 10
-		NVal          = "11211"
+		NVal          = defaultPort
 	)
 
 	// check DEL of non-existing key fails...
@@ -458,7 +458,7 @@ func TestIncrDecr(t *testing.T) {
 	v, _, _, err := c.Get(Key1)
 	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
 	vn := strconv.FormatUint(exp, 10)
-	assertEqualf(t, vn, v, "wrong value: %s (expected %s)", n, vn)
+	assertEqualf(t, vn, v, "wrong value: %d (expected %s)", n, vn)
 
 	// test that set on a counter works...
 	_, err = c.Set(Key1, NVal, 0, 0, 0)
@@ -528,21 +528,21 @@ func TestIncrExpiration(t *testing.T) {
 	_, _, _, err = c.Get(Key1)
 	assertEqualf(t, ErrNotFound, err, "key shouldn't exist in cache: %v", err)
 
-	// suceed this time. Any value but OnlyDelta should succeed.
+	// succeed this time. Any value but OnlyDelta should succeed.
 	exp := NStart
 	n, _, err := c.Incr(Key1, 10, NStart, 0, 0)
 	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
 	assertEqualf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 	c.Del(Key1)
 
-	// suceed this time. Any value but OnlyDelta should succeed.
+	// succeed this time. Any value but OnlyDelta should succeed.
 	exp = NStart
 	n, _, err = c.Incr(Key1, 10, NStart, 1, 0)
 	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
 	assertEqualf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 	c.Del(Key1)
 
-	// suceed this time. Any value but OnlyDelta should succeed.
+	// succeed this time. Any value but OnlyDelta should succeed.
 	exp = NStart
 	n, _, err = c.Incr(Key1, 10, NStart, OnlyDelta-1, 0)
 	assertEqualf(t, mcNil, err, "unexpected error: %v", err)

@@ -422,7 +422,7 @@ func (c *Client) Version() (vers map[string]string, err error) {
 	return
 }
 
-// Quit closes the connection with memcache server (nicely).
+// Quit closes the connection with memcached server (nicely).
 func (c *Client) Quit() {
 	// Variants: Quit [Q]
 	// Request : MUST NOT key, value, extras

@@ -4,6 +4,8 @@ package mc
 
 import (
 	"net"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 )
@@ -11,6 +13,7 @@ import (
 // server represents a server and contains all connections to that server
 type server struct {
 	address string
+	scheme  string
 	config  *Config
 	// NOTE: organizing the pool as a chan makes the usage of the containing
 	// connections treadsafe
@@ -19,23 +22,44 @@ type server struct {
 	lock    sync.Mutex
 }
 
+const defaultPort = "11211"
+
 func newServer(address, username, password string, config *Config, newMcConn connGen) *server {
-	var hostport string
-	host, port, err := net.SplitHostPort(address)
-	if err == nil {
-		hostport = net.JoinHostPort(host, port)
-	} else {
-		hostport = net.JoinHostPort(address, "11211")
+	addr := address
+	scheme := "tcp"
+
+	if u, err := url.Parse(address); err == nil {
+		switch strings.ToLower(u.Scheme) {
+		case "tcp":
+			if len(u.Port()) == 0 {
+				addr = net.JoinHostPort(u.Host, defaultPort)
+			} else {
+				addr = u.Host
+			}
+
+		case "unix":
+			addr = u.Path
+			scheme = "unix"
+
+		case "":
+			if host, port, err := net.SplitHostPort(address); err == nil {
+				addr = net.JoinHostPort(host, port)
+			} else {
+				addr = net.JoinHostPort(address, defaultPort)
+			}
+		}
 	}
+
 	server := &server{
-		address: hostport,
+		address: addr,
+		scheme:  scheme,
 		config:  config,
 		pool:    make(chan mcConn, config.PoolSize),
 		isAlive: true,
 	}
 
 	for i := 0; i < config.PoolSize; i++ {
-		server.pool <- newMcConn(hostport, username, password, config)
+		server.pool <- newMcConn(addr, scheme, username, password, config)
 	}
 
 	return server
