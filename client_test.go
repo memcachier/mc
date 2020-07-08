@@ -367,7 +367,7 @@ func TestIncrDecrNonNumeric(t *testing.T) {
 	const (
 		Key1          = "n"
 		NStart uint64 = 10
-		NVal          = "11211"
+		NVal          = defaultPort
 		Val           = "nup"
 	)
 
@@ -395,7 +395,7 @@ func TestIncrDecr(t *testing.T) {
 	const (
 		Key1          = "n"
 		NStart uint64 = 10
-		NVal          = "11211"
+		NVal          = defaultPort
 	)
 
 	// check DEL of non-existing key fails...

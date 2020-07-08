@@ -20,11 +20,12 @@ type mcConn interface {
 	restore(m *msg)
 }
 
-type connGen func(address, username, password string, config *Config) mcConn
+type connGen func(address, scheme, username, password string, config *Config) mcConn
 
 // serverConn is a connection to a memcache server.
 type serverConn struct {
 	address   string
+	scheme    string
 	username  string
 	password  string
 	config    *Config
@@ -34,9 +35,10 @@ type serverConn struct {
 	backupMsg msg
 }
 
-func newServerConn(address, username, password string, config *Config) mcConn {
+func newServerConn(address, scheme, username, password string, config *Config) mcConn {
 	serverConn := &serverConn{
 		address:  address,
+		scheme:   scheme,
 		username: username,
 		password: password,
 		config:   config,
@@ -76,18 +78,22 @@ func (sc *serverConn) quit(m *msg) {
 }
 
 func (sc *serverConn) connect() error {
-	c, err := net.DialTimeout("tcp", sc.address, sc.config.ConnectionTimeout)
+	fmt.Printf("address = %s, scheme = %s\n", sc.address, sc.scheme)
+	c, err := net.DialTimeout(sc.scheme, sc.address, sc.config.ConnectionTimeout)
 	if err != nil {
 		return wrapError(StatusNetworkError, err)
 	}
 	sc.conn = c
-	tcpConn, ok := c.(*net.TCPConn)
-	if !ok {
-		return &Error{StatusNetworkError, "Cannot convert into TCP connection", nil}
+	if sc.scheme == "tcp" {
+		tcpConn, ok := c.(*net.TCPConn)
+		if !ok {
+			return &Error{StatusNetworkError, "Cannot convert into TCP connection", nil}
+		}
+
+		tcpConn.SetKeepAlive(sc.config.TcpKeepAlive)
+		tcpConn.SetKeepAlivePeriod(sc.config.TcpKeepAlivePeriod)
+		tcpConn.SetNoDelay(sc.config.TcpNoDelay)
 	}
-	tcpConn.SetKeepAlive(sc.config.TcpKeepAlive)
-	tcpConn.SetKeepAlivePeriod(sc.config.TcpKeepAlivePeriod)
-	tcpConn.SetNoDelay(sc.config.TcpNoDelay)
 	// authenticate
 	err = sc.auth()
 	if err != nil {
