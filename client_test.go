@@ -528,21 +528,21 @@ func TestIncrExpiration(t *testing.T) {
 	_, _, _, err = c.Get(Key1)
 	assertEqualf(t, ErrNotFound, err, "key shouldn't exist in cache: %v", err)
 
-	// suceed this time. Any value but OnlyDelta should succeed.
+	// succeed this time. Any value but OnlyDelta should succeed.
 	exp := NStart
 	n, _, err := c.Incr(Key1, 10, NStart, 0, 0)
 	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
 	assertEqualf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 	c.Del(Key1)
 
-	// suceed this time. Any value but OnlyDelta should succeed.
+	// succeed this time. Any value but OnlyDelta should succeed.
 	exp = NStart
 	n, _, err = c.Incr(Key1, 10, NStart, 1, 0)
 	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
 	assertEqualf(t, exp, n, "wrong value: %d (expected %d)", n, exp)
 	c.Del(Key1)
 
-	// suceed this time. Any value but OnlyDelta should succeed.
+	// succeed this time. Any value but OnlyDelta should succeed.
 	exp = NStart
 	n, _, err = c.Incr(Key1, 10, NStart, OnlyDelta-1, 0)
 	assertEqualf(t, mcNil, err, "unexpected error: %v", err)

@@ -127,7 +127,7 @@ func (sc *serverConn) auth() error {
 }
 
 // authList runs the SASL authentication list command with the server to
-// retrieve the list of support authentication mechansims.
+// retrieve the list of support authentication mechanisms.
 func (sc *serverConn) authList() (string, error) {
 	m := &msg{
 		header: header{
@@ -287,7 +287,7 @@ func sizeOfExtras(extras []interface{}) (l uint8) {
 	return
 }
 
-// resetConn destroy connection if a network error ocurred. serverConn will
+// resetConn destroy connection if a network error occurred. serverConn will
 // reconnect on next usage.
 func (sc *serverConn) resetConn(err error) {
 	if err.(*Error).Status == StatusNetworkError {
