@@ -458,7 +458,7 @@ func TestIncrDecr(t *testing.T) {
 	v, _, _, err := c.Get(Key1)
 	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
 	vn := strconv.FormatUint(exp, 10)
-	assertEqualf(t, vn, v, "wrong value: %s (expected %s)", n, vn)
+	assertEqualf(t, vn, v, "wrong value: %d (expected %s)", n, vn)
 
 	// test that set on a counter works...
 	_, err = c.Set(Key1, NVal, 0, 0, 0)

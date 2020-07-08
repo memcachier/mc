@@ -17,7 +17,7 @@ func testInit(t *testing.T) *Client {
 
 func assertEqualf(t *testing.T, exp, got interface{}, format string, args ...interface{}) {
 	if !reflect.DeepEqual(exp, got) {
-		t.Errorf(format, args)
+		t.Errorf(format, args...)
 		t.Errorf("expected: %v", exp)
 		t.Errorf("got: %v", got)
 		t.FailNow()
@@ -26,7 +26,7 @@ func assertEqualf(t *testing.T, exp, got interface{}, format string, args ...int
 
 func assertNotEqualf(t *testing.T, exp, got interface{}, format string, args ...interface{}) {
 	if reflect.DeepEqual(exp, got) {
-		t.Errorf(format, args)
+		t.Errorf(format, args...)
 		t.Errorf("did not expect: %v", exp)
 		t.FailNow()
 	}
@@ -34,6 +34,6 @@ func assertNotEqualf(t *testing.T, exp, got interface{}, format string, args ...
 
 func assertTruef(t *testing.T, res bool, format string, args ...interface{}) {
 	if !res {
-		t.Fatalf(format, args)
+		t.Fatalf(format, args...)
 	}
 }
