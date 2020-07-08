@@ -72,8 +72,11 @@ func (sc *serverConn) performStats(m *msg) (McStats, error) {
 func (sc *serverConn) quit(m *msg) {
 	if sc.conn != nil {
 		sc.sendRecv(m)
-		sc.conn.Close()
-		sc.conn = nil
+
+		if sc.conn != nil {
+			sc.conn.Close()
+			sc.conn = nil
+		}
 	}
 }
 
