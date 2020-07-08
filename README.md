@@ -10,6 +10,12 @@ pools, timeouts, and failover.
 
 ## Install
 
+Module-aware mode:
+```
+$ go get github.com/memcachier/mc/v2
+```
+
+Legacy GOPATH mode:
 ```
 $ go get github.com/memcachier/mc
 ```
@@ -17,7 +23,9 @@ $ go get github.com/memcachier/mc
 ## Use
 
 ```go
-import "github.com/memcachier/mc"
+import "github.com/memcachier/mc/v2"
+// Legacy GOPATH mode:
+// import "github.com/memcachier/mc"
 
 func main() {
 	// Error handling omitted for demo
