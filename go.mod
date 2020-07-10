@@ -1,3 +1,3 @@
-module github.com/memcachier/mc/v2
+module github.com/memcachier/mc/v3
 
 go 1.12

@@ -12,7 +12,7 @@ pools, timeouts, and failover.
 
 Module-aware mode:
 ```
-$ go get github.com/memcachier/mc/v2
+$ go get github.com/memcachier/mc/v3
 ```
 
 Legacy GOPATH mode:
@@ -23,7 +23,7 @@ $ go get github.com/memcachier/mc
 ## Use
 
 ```go
-import "github.com/memcachier/mc/v2"
+import "github.com/memcachier/mc/v3"
 // Legacy GOPATH mode:
 // import "github.com/memcachier/mc"
 
