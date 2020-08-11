@@ -102,8 +102,10 @@ func (sc *serverConn) connect() error {
 		// Error, except if the server doesn't support authentication
 		mErr := err.(*Error)
 		if mErr.Status != StatusUnknownCommand {
-			sc.conn.Close()
-			sc.conn = nil
+			if sc.conn != nil {
+				sc.conn.Close()
+				sc.conn = nil
+			}
 			return err
 		}
 	}
