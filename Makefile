@@ -22,6 +22,14 @@ test-full: build
 	cd $(CURDIR); cat test.pids | xargs kill; rm test.pids
 	@exit ${ST}
 
+test-multinode: build
+	@memcached -p 11289 & echo $$! > test.pids
+	@memcached -p 11290 & echo $$! >> test.pids
+	@memcached -p 11291 & echo $$! >> test.pids
+	@GOPATH=$(CURDIR) GO15VENDOREXPERIMENT=1 $(GO) test -run '^TestMultiNode' -v -tags=multinode; ST=$?; \
+	cat test.pids | xargs kill; rm test.pids
+	@exit ${ST}
+
 bench: build
 	@memcached -p 11289 & echo $$! > test.pids
 	@GOPATH=$(CURDIR) $(GO) test -run "notests" -bench ".*"; ST=$?; \

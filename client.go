@@ -370,7 +370,8 @@ func (c *Client) Flush(when uint32) (err error) {
 
 	for _, s := range c.servers {
 		if s.isAlive {
-			err = s.perform(m)
+			var ms msg = *m
+			err = s.perform(&ms)
 		}
 	}
 	return err // retrns err from last perform but maybe should handle differently
@@ -390,7 +391,8 @@ func (c *Client) NoOp() (err error) {
 
 	for _, s := range c.servers {
 		if s.isAlive {
-			err = s.perform(m)
+			var ms msg = *m
+			err = s.perform(&ms)
 		}
 	}
 	return err // retrns err from last perform but maybe should handle differently
@@ -412,9 +414,10 @@ func (c *Client) Version() (vers map[string]string, err error) {
 	vers = make(map[string]string)
 	for _, s := range c.servers {
 		if s.isAlive {
-			err = s.perform(m)
+			var ms msg = *m
+			err = s.perform(&ms)
 			if err == nil {
-				vers[s.address] = m.val
+				vers[s.address] = ms.val
 			}
 		}
 	}
@@ -434,7 +437,8 @@ func (c *Client) Quit() {
 	}
 
 	for _, s := range c.servers {
-		s.quit(m)
+		var ms msg = *m
+		s.quit(&ms)
 	}
 }
 

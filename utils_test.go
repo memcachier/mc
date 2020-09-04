@@ -13,6 +13,14 @@ func testInit(t *testing.T) *Client {
 	return c
 }
 
+// start connection
+func testInitMultiNode(t *testing.T, servers, username, password string) *Client {
+	c := NewMC(servers, user, pass)
+	err := c.Flush(0)
+	assertEqualf(t, nil, err, "unexpected error during initial flush: %v", err)
+	return c
+}
+
 // TODO: asserts gives just the location of FailNow, more of a stack trace would be nice
 
 func assertEqualf(t *testing.T, exp, got interface{}, format string, args ...interface{}) {

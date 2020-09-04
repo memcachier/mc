@@ -27,3 +27,4 @@ install:
 script:
   - make
   - make test-full
+  - make test-multinode
