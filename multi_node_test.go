@@ -18,4 +18,19 @@ func TestMultiNodeVersion(t *testing.T) {
 		assertEqualf(t, nil, errRegex, "unexpected error: %v", errRegex)
 		assertEqualf(t, good, true, "version of unexcpected form: %s", v)
 	}
+	c.Quit()
+}
+
+func TestMultiNodeNoOp(t *testing.T) {
+	c := testInitMultiNode(t, "localhost:11289 localhost:11290 localhost:11291", "", "")
+	err := c.NoOp()
+	assertEqualf(t, nil, err, "unexpected error: %v", err)
+	c.Quit()
+}
+
+func TestMultiNodeFlush(t *testing.T) {
+	c := testInitMultiNode(t, "localhost:11289 localhost:11290 localhost:11291", "", "")
+	err := c.Flush(0)
+	assertEqualf(t, nil, err, "unexpected error: %v", err)
+	c.Quit()
 }
