@@ -114,6 +114,9 @@ func (sc *serverConn) connect() error {
 
 // Auth performs SASL authentication (using the PLAIN method) with the server.
 func (sc *serverConn) auth() error {
+	if len(sc.username) == 0 && len(sc.password) == 0 {
+		return nil
+	}
 	s, err := sc.authList()
 	if err != nil {
 		return err
