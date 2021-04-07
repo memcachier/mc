@@ -1606,3 +1606,12 @@ func TestStatsReset(t *testing.T) {
 		break // in case there are multiple servers
 	}
 }
+
+func TestGetServer(t *testing.T) {
+	c := NewMC(mcAddr+","+badAddr, user, pass)
+	c.servers[1].isAlive = false
+
+	s, e := c.getServer("ok")
+	assertEqualf(t, nil, e, "err was not nil")
+	assertEqualf(t, mcAddr, s.address, "address of incorrect server returned")
+}

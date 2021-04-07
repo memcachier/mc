@@ -124,7 +124,7 @@ func (c *Client) getServer(key string) (*server, error) {
 	}
 	nServers := uint(len(c.servers))
 	for i := uint(0); i < nServers; i++ {
-		s := c.servers[idx+i%nServers]
+		s := c.servers[(idx+i)%nServers]
 		if s.isAlive {
 			return s, nil
 		}
