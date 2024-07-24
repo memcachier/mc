@@ -6,6 +6,16 @@ import (
 )
 
 // start connection
+func testInitCompress(t *testing.T) *Client {
+	config := DefaultConfig()
+	config.CompressionLevel = -1
+	c := NewMCwithConfig(mcAddr, user, pass, config)
+	err := c.Flush(0)
+	assertEqualf(t, nil, err, "unexpected error during initial flush: %v", err)
+	return c
+}
+
+// start connection
 func testInit(t *testing.T) *Client {
 	c := NewMC(mcAddr, user, pass)
 	err := c.Flush(0)
