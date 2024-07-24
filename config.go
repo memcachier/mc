@@ -22,6 +22,12 @@ type Config struct {
 	TcpKeepAlive       bool
 	TcpKeepAlivePeriod time.Duration
 	TcpNoDelay         bool
+	CompressionLevel   int
+	// Compression level should be set following the gzip standards
+	// No Compression      = 0
+	// Best Speed          = 1
+	// Best Compression    = 9
+	// Default Compression = -1
 }
 
 /*
@@ -39,6 +45,7 @@ The default values currently are:
 		TcpKeepAlive:       true,
 		TcpKeepAlivePeriod: 60 * time.Second,
 		TcpNoDelay:         true,
+		CompressionLevel: 				0,
 	}
 */
 func DefaultConfig() *Config {
@@ -53,5 +60,6 @@ func DefaultConfig() *Config {
 		TcpKeepAlive:       true,
 		TcpKeepAlivePeriod: 60 * time.Second,
 		TcpNoDelay:         true,
+		CompressionLevel:   0,
 	}
 }
