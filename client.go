@@ -511,15 +511,19 @@ func unzip(m *msg) {
 
 // Deflate the data
 func deflate(m *msg, cLevel int) error {
-	var compressedValue bytes.Buffer
-	zw, err := zlib.NewWriterLevel(&compressedValue, cLevel)
-	if err != nil {
-		return err
+	valInBytes := []byte(m.val)
+	// Don't deflate small values
+	if len(valInBytes) >= 100 {
+		var compressedValue bytes.Buffer
+		zw, err := zlib.NewWriterLevel(&compressedValue, cLevel)
+		if err != nil {
+			return err
+		}
+		if _, err = zw.Write([]byte(m.val)); err != nil {
+			return err
+		}
+		zw.Close()
+		m.val = compressedValue.String()
 	}
-	if _, err = zw.Write([]byte(m.val)); err != nil {
-		return err
-	}
-	zw.Close()
-	m.val = compressedValue.String()
 	return nil
 }
