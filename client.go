@@ -3,10 +3,7 @@
 package mc
 
 import (
-	"bytes"
-	"compress/zlib"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 )
@@ -160,7 +157,12 @@ func (c *Client) getCAS(key string, ocas uint64) (val string, flags uint32, cas 
 	}
 
 	err = c.perform(m)
-	unzip(m)
+	if c.config.Compression.unzip != nil && err == nil {
+		m.val, err = c.config.Compression.unzip(m.val)
+		if err != nil {
+			return m.val, flags, m.CAS, err
+		}
+	}
 	return m.val, flags, m.CAS, err
 }
 
@@ -235,8 +237,8 @@ func (c *Client) setGeneric(op opCode, key, val string, ocas uint64, flags, exp 
 		key:     key,
 		val:     val,
 	}
-	if c.config.CompressionLevel != 0 {
-		err = deflate(m, c.config.CompressionLevel)
+	if c.config.Compression.deflate != nil {
+		m.val, err = c.config.Compression.deflate(m.val)
 		if err != nil {
 			return m.CAS, err
 		}
@@ -489,42 +491,4 @@ func (c *Client) Stats() (stats map[string]McStats, err error) {
 func (c *Client) StatsReset() (err error) {
 	_, err = c.StatsWithKey("reset")
 	return err
-}
-
-// Unzip the data if the data is compressed
-func unzip(m *msg) {
-	if m.val == "" {
-		return
-	}
-	zr, err := zlib.NewReader(strings.NewReader(m.val))
-	if err != nil {
-		return
-	}
-	defer zr.Close()
-	var unCompressedValue bytes.Buffer
-	_, err = io.Copy(&unCompressedValue, zr)
-	if err != nil {
-		return
-	}
-	m.val = unCompressedValue.String()
-}
-
-// Deflate the data
-func deflate(m *msg, cLevel int) error {
-	valInBytes := []byte(m.val)
-	if len(valInBytes) < 100 {
-		// Don't deflate small values
-		return nil
-	}
-	var compressedValue bytes.Buffer
-	zw, err := zlib.NewWriterLevel(&compressedValue, cLevel)
-	if err != nil {
-		return err
-	}
-	if _, err = zw.Write(valInBytes); err != nil {
-		return err
-	}
-	zw.Close()
-	m.val = compressedValue.String()
-	return nil
 }

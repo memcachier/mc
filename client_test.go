@@ -1625,8 +1625,8 @@ func TestMCCompression(t *testing.T) {
 	const (
 		Key1 = "foo"
 		Val1 = "bar"
-		Val2 = "bar-bad"
-		Val3 = "bar-good"
+		Val2 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc fermentum arcu id libero maximus mollis. Nulla id lorem efficitur, maximus risus vitae, iaculis libero. Mauris non vehicula tortor. Etiam fringilla dictum elit. Donec dui justo, semper et nisl vitae, vestibulum tempus enim. Aenean id lacinia diam. Integer viverra viverra augue, vitae feugiat mauris posuere at. Praesent luctus, urna eu sollicitudin ultrices, enim tortor sagittis nunc, eget ultricies nisi nibh in neque. Integer eget commodo ipsum, non congue purus. Nullam erat felis, dictum vel ligula ut, maximus aliquet justo. Nunc volutpat magna vitae arcu consectetur, vitae molestie odio efficitur."
+		Val3 = "Praesent vel pretium elit. Donec volutpat placerat dolor eu tempus. Vivamus suscipit maximus tortor quis interdum. Cras venenatis consectetur pellentesque. Pellentesque gravida ut mi sit amet bibendum. Phasellus bibendum ex sit amet dolor condimentum mattis. Cras nunc diam, ornare quis velit sed, ullamcorper viverra erat. Nunc placerat tempus porttitor. Suspendisse vestibulum nisl a mauris mollis rhoncus. Morbi consequat felis sit amet magna iaculis scelerisque."
 	)
 
 	// fmt.Printf("test init: %v", c)

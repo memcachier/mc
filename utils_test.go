@@ -1,14 +1,47 @@
 package mc
 
 import (
+	"bytes"
+	"compress/zlib"
+	"io"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 // start connection
 func testInitCompress(t *testing.T) *Client {
 	config := DefaultConfig()
-	config.CompressionLevel = -1
+	config.Compression.deflate = func(value string) (string, error) {
+		var compressedValue bytes.Buffer
+		zw, err := zlib.NewWriterLevel(&compressedValue, -1)
+		if err != nil {
+			return value, err
+		}
+		if _, err = zw.Write([]byte(value)); err != nil {
+			return value, err
+		}
+		zw.Close()
+		return compressedValue.String(), nil
+	}
+
+	config.Compression.unzip = func(value string) (string, error) {
+		if value == "" {
+			return value, nil
+		}
+		zr, err := zlib.NewReader(strings.NewReader(value))
+		if err != nil {
+			return value, nil // Does not return error, the value could be not compressed
+		}
+		defer zr.Close()
+		var unCompressedValue bytes.Buffer
+		_, err = io.Copy(&unCompressedValue, zr)
+		if err != nil {
+			return value, nil
+		}
+		return unCompressedValue.String(), nil
+	}
+
 	c := NewMCwithConfig(mcAddr, user, pass, config)
 	err := c.Flush(0)
 	assertEqualf(t, nil, err, "unexpected error during initial flush: %v", err)

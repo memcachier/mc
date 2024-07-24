@@ -57,7 +57,10 @@ func main() {
 ## Using Compression
 
 ```go
-import "github.com/memcachier/mc/v3"
+import (
+  "github.com/memcachier/mc/v3"
+  "compress/zlib"
+)
 // Legacy GOPATH mode:
 // import "github.com/memcachier/mc"
 
@@ -66,12 +69,40 @@ func main() {
 
 	// Only PLAIN SASL auth supported right now
   config := mc.DefaultConfig()
-  // Compression level should be set following the zlib standards
-	// No Compression      = 0
-	// Best Speed          = 1
-	// Best Compression    = 9
-	// Default Compression = -1
-  config.CompressLevel = -1
+
+  // You have to set the functions to deflate and unzip
+	// At this example we are using zlib
+
+  config.Compression.deflate = func(value string) (string, error) {
+		var compressedValue bytes.Buffer
+		zw, err := zlib.NewWriterLevel(&compressedValue, -1)
+		if err != nil {
+			return value, err
+		}
+		if _, err = zw.Write([]byte(value)); err != nil {
+			return value, err
+		}
+		zw.Close()
+		return compressedValue.String(), nil
+	}
+
+	config.Compression.unzip = func(value string) (string, error) {
+		if value == "" {
+			return value, nil
+		}
+		zr, err := zlib.NewReader(strings.NewReader(value))
+		if err != nil {
+			return value, nil // Does not return error, the value could be not compressed
+		}
+		defer zr.Close()
+		var unCompressedValue bytes.Buffer
+		_, err = io.Copy(&unCompressedValue, zr)
+		if err != nil {
+			return value, nil
+		}
+		return unCompressedValue.String(), nil
+	}
+
 	c := mc.NewMCwithConfig("localhost:11211", "username", "password", config)
 	defer c.Quit()
 

@@ -22,12 +22,10 @@ type Config struct {
 	TcpKeepAlive       bool
 	TcpKeepAlivePeriod time.Duration
 	TcpNoDelay         bool
-	CompressionLevel   int
-	// Compression level should be set following the zlib standards
-	// No Compression      = 0
-	// Best Speed          = 1
-	// Best Compression    = 9
-	// Default Compression = -1
+	Compression        struct {
+		unzip   func(value string) (string, error)
+		deflate func(value string) (string, error)
+	}
 }
 
 /*
@@ -45,7 +43,10 @@ The default values currently are:
 		TcpKeepAlive:       true,
 		TcpKeepAlivePeriod: 60 * time.Second,
 		TcpNoDelay:         true,
-		CompressionLevel: 				0,
+		Compression        struct {
+			unzip   nil
+			deflate nil
+		}
 	}
 */
 func DefaultConfig() *Config {
@@ -60,6 +61,9 @@ func DefaultConfig() *Config {
 		TcpKeepAlive:       true,
 		TcpKeepAlivePeriod: 60 * time.Second,
 		TcpNoDelay:         true,
-		CompressionLevel:   0,
+		Compression: struct {
+			unzip   func(value string) (string, error)
+			deflate func(value string) (string, error)
+		}{unzip: nil, deflate: nil},
 	}
 }
