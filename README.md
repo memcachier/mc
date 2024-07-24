@@ -4,18 +4,20 @@
 [![Build Status](https://img.shields.io/travis/memcachier/mc.svg?style=flat)](https://travis-ci.org/memcachier/mc)
 
 This is a (pure) Go client for [Memcached](http://memcached.org). It supports
-the binary Memcached protocol and SASL authentication. It's thread-safe.
+the binary Memcached protocol, SASL authentication and Compression. It's thread-safe.
 It allows connections to entire Memcached clusters and supports connection
 pools, timeouts, and failover.
 
 ## Install
 
 Module-aware mode:
+
 ```
 $ go get github.com/memcachier/mc/v3
 ```
 
 Legacy GOPATH mode:
+
 ```
 $ go get github.com/memcachier/mc
 ```
@@ -32,6 +34,45 @@ func main() {
 
 	// Only PLAIN SASL auth supported right now
 	c := mc.NewMC("localhost:11211", "username", "password")
+	defer c.Quit()
+
+	exp := 3600 // 2 hours
+	cas, err = c.Set("foo", "bar", flags, exp, cas)
+	if err != nil {
+		...
+	}
+
+	val, flags, cas, err = c.Get("foo")
+	if err != nil {
+		...
+	}
+
+	err = c.Del("foo")
+	if err != nil {
+		...
+	}
+}
+```
+
+## Using Compression
+
+```go
+import "github.com/memcachier/mc/v3"
+// Legacy GOPATH mode:
+// import "github.com/memcachier/mc"
+
+func main() {
+	// Error handling omitted for demo
+
+	// Only PLAIN SASL auth supported right now
+  config := mc.DefaultConfig()
+  // Compression level should be set following the zlib standards
+	// No Compression      = 0
+	// Best Speed          = 1
+	// Best Compression    = 9
+	// Default Compression = -1
+  config.CompressLevel = -1
+	c := mc.NewMCwithConfig("localhost:11211", "username", "password", config)
 	defer c.Quit()
 
 	exp := 3600 // 2 hours
@@ -76,7 +117,7 @@ Please report bugs via the
 
 Master [git repository](http://github.com/memcachier/mc):
 
-* `git clone git://github.com/memcachier/mc.git`
+- `git clone git://github.com/memcachier/mc.git`
 
 ## Licensing
 

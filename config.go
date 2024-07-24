@@ -23,7 +23,7 @@ type Config struct {
 	TcpKeepAlivePeriod time.Duration
 	TcpNoDelay         bool
 	CompressionLevel   int
-	// Compression level should be set following the gzip standards
+	// Compression level should be set following the zlib standards
 	// No Compression      = 0
 	// Best Speed          = 1
 	// Best Compression    = 9
