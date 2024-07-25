@@ -73,7 +73,7 @@ func main() {
   // You have to set the functions to deflate and unzip
 	// At this example we are using zlib
 
-  config.Compression.deflate = func(value string) (string, error) {
+  config.Compression.decompress = func(value string) (string, error) {
 		var compressedValue bytes.Buffer
 		zw, err := zlib.NewWriterLevel(&compressedValue, -1)
 		if err != nil {
@@ -86,7 +86,7 @@ func main() {
 		return compressedValue.String(), nil
 	}
 
-	config.Compression.unzip = func(value string) (string, error) {
+	config.Compression.compress = func(value string) (string, error) {
 		if value == "" {
 			return value, nil
 		}

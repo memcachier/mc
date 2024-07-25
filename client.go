@@ -157,11 +157,8 @@ func (c *Client) getCAS(key string, ocas uint64) (val string, flags uint32, cas 
 	}
 
 	err = c.perform(m)
-	if c.config.Compression.unzip != nil && err == nil {
-		m.val, err = c.config.Compression.unzip(m.val)
-		if err != nil {
-			return m.val, flags, m.CAS, err
-		}
+	if c.config.Compression.decompress != nil && err == nil {
+		m.val, err = c.config.Compression.decompress(m.val)
 	}
 	return m.val, flags, m.CAS, err
 }
@@ -237,8 +234,8 @@ func (c *Client) setGeneric(op opCode, key, val string, ocas uint64, flags, exp 
 		key:     key,
 		val:     val,
 	}
-	if c.config.Compression.deflate != nil {
-		m.val, err = c.config.Compression.deflate(m.val)
+	if c.config.Compression.compress != nil {
+		m.val, err = c.config.Compression.compress(m.val)
 		if err != nil {
 			return m.CAS, err
 		}

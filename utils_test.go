@@ -12,7 +12,7 @@ import (
 // start connection
 func testInitCompress(t *testing.T) *Client {
 	config := DefaultConfig()
-	config.Compression.deflate = func(value string) (string, error) {
+	config.Compression.compress = func(value string) (string, error) {
 		var compressedValue bytes.Buffer
 		zw, err := zlib.NewWriterLevel(&compressedValue, -1)
 		if err != nil {
@@ -25,19 +25,19 @@ func testInitCompress(t *testing.T) *Client {
 		return compressedValue.String(), nil
 	}
 
-	config.Compression.unzip = func(value string) (string, error) {
+	config.Compression.decompress = func(value string) (string, error) {
 		if value == "" {
 			return value, nil
 		}
 		zr, err := zlib.NewReader(strings.NewReader(value))
 		if err != nil {
-			return value, nil // Does not return error, the value could be not compressed
+			return value, err
 		}
 		defer zr.Close()
 		var unCompressedValue bytes.Buffer
 		_, err = io.Copy(&unCompressedValue, zr)
 		if err != nil {
-			return value, nil
+			return value, err
 		}
 		return unCompressedValue.String(), nil
 	}
