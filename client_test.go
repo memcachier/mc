@@ -358,9 +358,12 @@ func TestDelete(t *testing.T) {
 
 // Test behaviour of errors and cache removal.
 // NOTE: calling incr/decr on a non-numeric returns an error BUT also seems to
-//       remove it from the cache...
+//
+//	remove it from the cache...
+//
 // NOTE: I think above may have been a bug present in memcache 1.4.12 but is
-//       fixed in 1.4.13...
+//
+//	fixed in 1.4.13...
 func TestIncrDecrNonNumeric(t *testing.T) {
 	c := testInit(t)
 
@@ -1614,4 +1617,43 @@ func TestGetServer(t *testing.T) {
 	s, e := c.getServer("ok")
 	assertEqualf(t, nil, e, "err was not nil")
 	assertEqualf(t, mcAddr, s.address, "address of incorrect server returned")
+}
+
+func TestMCCompression(t *testing.T) {
+	c := testInitCompress(t)
+
+	const (
+		Key1 = "foo"
+		Val1 = "bar"
+		Val2 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc fermentum arcu id libero maximus mollis. Nulla id lorem efficitur, maximus risus vitae, iaculis libero. Mauris non vehicula tortor. Etiam fringilla dictum elit. Donec dui justo, semper et nisl vitae, vestibulum tempus enim. Aenean id lacinia diam. Integer viverra viverra augue, vitae feugiat mauris posuere at. Praesent luctus, urna eu sollicitudin ultrices, enim tortor sagittis nunc, eget ultricies nisi nibh in neque. Integer eget commodo ipsum, non congue purus. Nullam erat felis, dictum vel ligula ut, maximus aliquet justo. Nunc volutpat magna vitae arcu consectetur, vitae molestie odio efficitur."
+		Val3 = "Praesent vel pretium elit. Donec volutpat placerat dolor eu tempus. Vivamus suscipit maximus tortor quis interdum. Cras venenatis consectetur pellentesque. Pellentesque gravida ut mi sit amet bibendum. Phasellus bibendum ex sit amet dolor condimentum mattis. Cras nunc diam, ornare quis velit sed, ullamcorper viverra erat. Nunc placerat tempus porttitor. Suspendisse vestibulum nisl a mauris mollis rhoncus. Morbi consequat felis sit amet magna iaculis scelerisque."
+	)
+
+	// fmt.Printf("test init: %v", c)
+	val, flags, cs, err := c.Get(Key1)
+	if err != ErrNotFound {
+		t.Errorf("val: %v, flags: %v, cas: %v", val, flags, cs)
+		t.Fatalf("expected missing key: %v", err)
+	}
+
+	// unconditional SET
+	_, err = c.Set(Key1, Val1, 0, 0, 0)
+	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
+	cas, err := c.Set(Key1, Val1, 0, 0, 0)
+	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
+
+	// make sure CAS works
+	_, err = c.Set(Key1, Val2, 0, 0, cas+1)
+	assertEqualf(t, ErrKeyExists, err, "expected CAS mismatch: %v", err)
+
+	// check SET actually set the correct value...
+	v, _, cas2, err := c.Get(Key1)
+	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
+	assertEqualf(t, Val1, v, "wrong value: %s", v)
+	assertEqualf(t, cas, cas2, "CAS shouldn't have changed: %d, %d", cas, cas2)
+
+	// use correct CAS...
+	cas2, err = c.Set(Key1, Val3, 0, 0, cas)
+	assertEqualf(t, mcNil, err, "unexpected error: %v", err)
+	assertNotEqualf(t, cas, cas2, "CAS should not be the same")
 }

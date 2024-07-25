@@ -22,6 +22,10 @@ type Config struct {
 	TcpKeepAlive       bool
 	TcpKeepAlivePeriod time.Duration
 	TcpNoDelay         bool
+	Compression        struct {
+		decompress func(value string) (string, error)
+		compress   func(value string) (string, error)
+	}
 }
 
 /*
@@ -39,6 +43,10 @@ The default values currently are:
 		TcpKeepAlive:       true,
 		TcpKeepAlivePeriod: 60 * time.Second,
 		TcpNoDelay:         true,
+		Compression        struct {
+			decompress  nil
+			compress 		nil
+		}
 	}
 */
 func DefaultConfig() *Config {
@@ -53,5 +61,9 @@ func DefaultConfig() *Config {
 		TcpKeepAlive:       true,
 		TcpKeepAlivePeriod: 60 * time.Second,
 		TcpNoDelay:         true,
+		Compression: struct {
+			decompress func(value string) (string, error)
+			compress   func(value string) (string, error)
+		}{decompress: nil, compress: nil},
 	}
 }
