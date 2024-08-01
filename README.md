@@ -33,24 +33,24 @@ func main() {
   // Error handling omitted for demo
 
   // Only PLAIN SASL auth supported right now
-	c := mc.NewMC("localhost:11211", "username", "password")
-	defer c.Quit()
+  c := mc.NewMC("localhost:11211", "username", "password")
+  defer c.Quit()
 
-	exp := 3600 // 2 hours
-	cas, err = c.Set("foo", "bar", flags, exp, cas)
-	if err != nil {
-		...
-	}
+  exp := 3600 // 2 hours
+  cas, err = c.Set("foo", "bar", flags, exp, cas)
+  if err != nil {
+  	...
+  }
 
-	val, flags, cas, err = c.Get("foo")
-	if err != nil {
-		...
-	}
+  val, flags, cas, err = c.Get("foo")
+  if err != nil {
+  	...
+  }
 
-	err = c.Del("foo")
-	if err != nil {
-		...
-	}
+  err = c.Del("foo")
+  if err != nil {
+  	...
+  }
 }
 ```
 
@@ -71,7 +71,7 @@ func main() {
   config := mc.DefaultConfig()
 
   // You have to set the functions to compress and descompress
-  // At this example we are using zlib
+  // At this example we are using zlib.
 
   config.Compression.Decompress = func(value string) (string, error) {
   	var compressedValue bytes.Buffer
@@ -141,7 +141,7 @@ func main() {
   config := mc.DefaultConfig()
 
   // You have to set the functions to compress and descompress
-  // At this example we are using gzip
+  // At this example we are using gzip.
 
   config.Compression.Decompress = func(value string) (string, error) {
   	var compressedValue bytes.Buffer
