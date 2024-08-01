@@ -30,31 +30,31 @@ import "github.com/memcachier/mc/v3"
 // import "github.com/memcachier/mc"
 
 func main() {
-	// Error handling omitted for demo
+  // Error handling omitted for demo
 
-	// Only PLAIN SASL auth supported right now
-	c := mc.NewMC("localhost:11211", "username", "password")
-	defer c.Quit()
+  // Only PLAIN SASL auth supported right now
+  c := mc.NewMC("localhost:11211", "username", "password")
+  defer c.Quit()
 
-	exp := 3600 // 2 hours
-	cas, err = c.Set("foo", "bar", flags, exp, cas)
-	if err != nil {
-		...
-	}
+  exp := 3600 // 2 hours
+  cas, err = c.Set("foo", "bar", flags, exp, cas)
+  if err != nil {
+  	...
+  }
 
-	val, flags, cas, err = c.Get("foo")
-	if err != nil {
-		...
-	}
+  val, flags, cas, err = c.Get("foo")
+  if err != nil {
+  	...
+  }
 
-	err = c.Del("foo")
-	if err != nil {
-		...
-	}
+  err = c.Del("foo")
+  if err != nil {
+  	...
+  }
 }
 ```
 
-## Using Compression
+## Using zlib Compression
 
 ```go
 import (
@@ -65,62 +65,132 @@ import (
 // import "github.com/memcachier/mc"
 
 func main() {
-	// Error handling omitted for demo
+  // Error handling omitted for demo
 
-	// Only PLAIN SASL auth supported right now
+  // Only PLAIN SASL auth supported right now
   config := mc.DefaultConfig()
 
-  // You have to set the functions to deflate and unzip
-	// At this example we are using zlib
+  // You have to set the functions to compress and descompress
+  // At this example we are using zlib.
 
-  config.Compression.decompress = func(value string) (string, error) {
-		var compressedValue bytes.Buffer
-		zw, err := zlib.NewWriterLevel(&compressedValue, -1)
-		if err != nil {
-			return value, err
-		}
-		if _, err = zw.Write([]byte(value)); err != nil {
-			return value, err
-		}
-		zw.Close()
-		return compressedValue.String(), nil
-	}
+  config.Compression.Decompress = func(value string) (string, error) {
+  	var compressedValue bytes.Buffer
+  	zw, err := zlib.NewWriterLevel(&compressedValue, -1)
+  	if err != nil {
+  		return value, err
+  	}
+  	if _, err = zw.Write([]byte(value)); err != nil {
+  		return value, err
+  	}
+  	zw.Close()
+  	return compressedValue.String(), nil
+  }
 
-	config.Compression.compress = func(value string) (string, error) {
-		if value == "" {
-			return value, nil
-		}
-		zr, err := zlib.NewReader(strings.NewReader(value))
-		if err != nil {
-			return value, nil // Does not return error, the value could be not compressed
-		}
-		defer zr.Close()
-		var unCompressedValue bytes.Buffer
-		_, err = io.Copy(&unCompressedValue, zr)
-		if err != nil {
-			return value, nil
-		}
-		return unCompressedValue.String(), nil
-	}
+  config.Compression.Compress = func(value string) (string, error) {
+  	if value == "" {
+  		return value, nil
+  	}
+  	zr, err := zlib.NewReader(strings.NewReader(value))
+  	if err != nil {
+  		return value, nil // Does not return error, the value could be not compressed
+  	}
+  	defer zr.Close()
+  	var unCompressedValue bytes.Buffer
+  	_, err = io.Copy(&unCompressedValue, zr)
+  	if err != nil {
+  		return value, nil
+  	}
+  	return unCompressedValue.String(), nil
+  }
 
-	c := mc.NewMCwithConfig("localhost:11211", "username", "password", config)
-	defer c.Quit()
+  c := mc.NewMCwithConfig("localhost:11211", "username", "password", config)
+  defer c.Quit()
 
-	exp := 3600 // 2 hours
-	cas, err = c.Set("foo", "bar", flags, exp, cas)
-	if err != nil {
-		...
-	}
+  exp := 3600 // 2 hours
+  cas, err = c.Set("foo", "bar", flags, exp, cas)
+  if err != nil {
+  	...
+  }
 
-	val, flags, cas, err = c.Get("foo")
-	if err != nil {
-		...
-	}
+  val, flags, cas, err = c.Get("foo")
+  if err != nil {
+  	...
+  }
 
-	err = c.Del("foo")
-	if err != nil {
-		...
-	}
+  err = c.Del("foo")
+  if err != nil {
+  	...
+  }
+}
+```
+
+## Using gzip Compression
+
+```go
+import (
+  "github.com/memcachier/mc/v3"
+  "compress/gzip"
+)
+// Legacy GOPATH mode:
+// import "github.com/memcachier/mc"
+
+func main() {
+  // Error handling omitted for demo
+
+  // Only PLAIN SASL auth supported right now
+  config := mc.DefaultConfig()
+
+  // You have to set the functions to compress and descompress
+  // At this example we are using gzip.
+
+  config.Compression.Decompress = func(value string) (string, error) {
+  	var compressedValue bytes.Buffer
+  	zw, err := gzip.NewWriterLevel(&compressedValue, -1)
+  	if err != nil {
+  		return value, err
+  	}
+  	if _, err = zw.Write([]byte(value)); err != nil {
+  		return value, err
+  	}
+  	zw.Close()
+  	return compressedValue.String(), nil
+  }
+
+  config.Compression.Compress = func(value string) (string, error) {
+  	if value == "" {
+  		return value, nil
+  	}
+  	zr, err := gzip.NewReader(strings.NewReader(value))
+  	if err != nil {
+  		return value, nil // Does not return error, the value could be not compressed
+  	}
+  	defer zr.Close()
+  	var unCompressedValue bytes.Buffer
+  	_, err = io.Copy(&unCompressedValue, zr)
+  	if err != nil {
+  		return value, nil
+  	}
+  	return unCompressedValue.String(), nil
+  }
+
+  c := mc.NewMCwithConfig("localhost:11211", "username", "password", config)
+  defer c.Quit()
+
+  exp := 3600 // 2 hours
+  cas, err = c.Set("foo", "bar", flags, exp, cas)
+  if err != nil {
+  	...
+  }
+
+  val, flags, cas, err = c.Get("foo")
+  if err != nil {
+  	...
+  }
+
+  err = c.Del("foo")
+  if err != nil {
+  	...
+  }
 }
 ```
 
